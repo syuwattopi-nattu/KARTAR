@@ -108,7 +108,9 @@ fun PlayerColumn(roomCreateViewModel: RoomCreateViewModel) {
                         model = roomCreateViewModel.playerInformation.value[index].second
                     )
                     Text(text = roomCreateViewModel.playerInformation.value[index].first)
-                    Text(text = roomCreateViewModel.allPlayers.value[index].state)
+                    if (roomCreateViewModel.allPlayers.value.size > index) {
+                        Text(text = roomCreateViewModel.allPlayers.value[index].state)
+                    }
                 }
             }
         }

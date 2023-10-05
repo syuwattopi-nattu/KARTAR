@@ -36,6 +36,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import okhttp3.internal.wait
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -184,15 +185,16 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                     /*参加者の場合部屋を退出する*/
                     createRoom.child("roomInfo").child("count").get()
                         .addOnSuccessListener { snapshot ->
-                            val currentValue: Int? = snapshot.getValue(Int::class.java)
-                            if (currentValue != null) {
-                                createRoom.child("roomInfo").child("count").setValue(currentValue - 1)
-                                //ポイント削除
-                                val userId = FirebaseAuth.getInstance().currentUser?.uid.toString()
-                                createRoom.child("point").child(userId).setValue(null)
-                                //プレーヤー削除
-                                createRoom.child("player").child(userId).setValue(null)
-                                navController.popBackStack("roomList", false)
+                            navController.popBackStack("roomList", false).apply {
+                                val currentValue: Int? = snapshot.getValue(Int::class.java)
+                                if (currentValue != null) {
+                                    createRoom.child("roomInfo").child("count").setValue(currentValue - 1)
+                                    //ポイント削除
+                                    val userId = FirebaseAuth.getInstance().currentUser?.uid.toString()
+                                    createRoom.child("point").child(userId).setValue(null)
+                                    //プレーヤー削除
+                                    createRoom.child("player").child(userId).setValue(null)
+                                }
                             }
                         }
                 }
