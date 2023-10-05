@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">KARTAR</string>
+    <string name="default_web_client_id">96357517333-k3bq0c1fj37cdoul7otll0pupv4625l2.apps.googleusercontent.com</string>
+    <string name="UserInformation">UserInformation</string>
+    <string name="UserName">UserName</string>
+    <string name="imageIcon">ImageIcon</string>
 </resources>
