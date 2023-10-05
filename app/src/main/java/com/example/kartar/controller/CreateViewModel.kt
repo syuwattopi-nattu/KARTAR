@@ -277,4 +277,13 @@ class CreateViewModel(context: Context) : ViewModel() {
         }
         return file.delete()
     }
+
+    /*************AI作成部分**********************/
+
+    val AIKeyword = mutableStateOf("")
+
+    /**AIキーワード入力処理**/
+    fun onAIKeywordChange(newValue: String) {
+        if (newValue.length < 15)  AIKeyword.value = newValue
+    }
 }

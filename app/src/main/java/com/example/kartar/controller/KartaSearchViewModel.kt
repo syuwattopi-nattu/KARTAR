@@ -118,16 +118,14 @@ class KartaSearchViewModel : ViewModel(){
                                     .get()
                                     .await()
 
-                                newKartaDataList.add(
-                                    KartaDataFromServer(
+                                newKartaDataList.add(KartaDataFromServer(
                                     kartaUid = document.id,
                                     create = document.get("create").toString(),
                                     title = title,
                                     description = description,
                                     genre = genre,
                                     kartaImage = efuda.get("efuda").toString()
-                                )
-                                )
+                                ))
                             }
                         }
 
@@ -147,16 +145,14 @@ class KartaSearchViewModel : ViewModel(){
                                     .get()
                                     .await()
 
-                                newKartaDataList.add(
-                                    KartaDataFromServer(
+                                newKartaDataList.add(KartaDataFromServer(
                                     kartaUid = document.id,
                                     create = document.get("create").toString(),
                                     title = title,
                                     description = document.get("description").toString(),
                                     genre = document.get("genre").toString(),
                                     kartaImage = efuda.get("efuda").toString()
-                                )
-                                )
+                                ))
                             }
                         }
 
@@ -176,16 +172,14 @@ class KartaSearchViewModel : ViewModel(){
                                     .get()
                                     .await()
 
-                                newKartaDataList.add(
-                                    KartaDataFromServer(
+                                newKartaDataList.add(KartaDataFromServer(
                                     kartaUid = document.id,
                                     create = document.get("create").toString(),
                                     title = document.get("title").toString(),
                                     description = description,
                                     genre = document.get("genre").toString(),
                                     kartaImage = efuda.get("efuda").toString()
-                                )
-                                )
+                                ))
                             }
                         }
 
@@ -205,16 +199,14 @@ class KartaSearchViewModel : ViewModel(){
                                     .get()
                                     .await()
 
-                                newKartaDataList.add(
-                                    KartaDataFromServer(
+                                newKartaDataList.add(KartaDataFromServer(
                                     kartaUid = document.id,
                                     create = document.get("create").toString(),
                                     title = document.get("title").toString(),
                                     description = document.get("description").toString(),
                                     genre = genre,
                                     kartaImage = efuda.get("efuda").toString()
-                                )
-                                )
+                                ))
                             }
                         }
 
@@ -241,16 +233,14 @@ class KartaSearchViewModel : ViewModel(){
                         .get()
                         .await()
 
-                    newKartaDataList.add(
-                        KartaDataFromServer(
+                    newKartaDataList.add(KartaDataFromServer(
                         kartaUid = document.id,
                         create = document.get("create").toString(),
                         title = document.get("title").toString(),
                         description = document.get("description").toString(),
                         genre = document.get("genre").toString(),
                         kartaImage = efuda.get("efuda").toString()
-                    )
-                    )
+                    ))
                 }
 
                 kartaDataFromServerList.value = newKartaDataList
@@ -303,12 +293,10 @@ class KartaSearchViewModel : ViewModel(){
                     val yomifudaTask = firestore.collection("kartaes").document(kartaUid)
                         .collection("yomifuda").document(index.toString()).get().await()
 
-                    currentList.add(
-                        KARTAData(
+                    currentList.add(KARTAData(
                         efuda = efudaTask.get("efuda").toString(),
                         yomifuda = yomifudaTask.get("yomifuda").toString()
-                    )
-                    )
+                    ))
                 }
                 operationComplete.value = true
                 kartaDataList.value = currentList
@@ -318,7 +306,6 @@ class KartaSearchViewModel : ViewModel(){
 
 
     //かるたをダウンロードする処理
-    @OptIn(DelicateCoroutinesApi::class)
     fun downloadKarta(context: Context, kartaUid: String, navController: NavController) {
         viewModelScope.launch {
             showDownloadDialog.value = false

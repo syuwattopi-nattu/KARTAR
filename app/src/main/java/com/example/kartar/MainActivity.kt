@@ -28,6 +28,7 @@ import com.example.kartar.view.screen.create.CreateMethodSelectScreen
 import com.example.kartar.view.screen.create.EfudaCollectionScreen
 import com.example.kartar.view.screen.create.KartaDetailScreen
 import com.example.kartar.view.screen.create.OriginalCreateScreen
+import com.example.kartar.view.screen.create.SelectAIKeyword
 import com.example.kartar.view.screen.create.server.ServerEfudaCollectionScreen
 import com.example.kartar.view.screen.create.server.ServerKartaDetail
 import com.example.kartar.view.screen.playKarta.RoomCreateScreen
@@ -92,6 +93,10 @@ class MainActivity: ComponentActivity() {
                 composable("${Screen.KartaDetail.route}/{kartaUid}") { navBackStackEntry ->
                     val kartaUid = navBackStackEntry.arguments?.getString("kartaUid").toString()
                     KartaDetailScreen(navController = navController, profileViewModel = profileViewModel, kartaUid = kartaUid, createViewModel = createViewModel)
+                }
+                /*AIかるた作成のキーワード入力画面*/
+                composable(Screen.SelectAIKeyword.route) {
+                    SelectAIKeyword(navController = navController, profileViewModel = profileViewModel, createViewModel = createViewModel)
                 }
                 /*自作かるたがめん*/
                 composable(Screen.OriginalCreate.route) { OriginalCreateScreen(navController = navController, createViewModel = createViewModel, profileViewModel = profileViewModel) }
@@ -166,5 +171,6 @@ class MainActivity: ComponentActivity() {
         object SoloSetup: Screen("soloSetup")
         object RoomCreate: Screen("roomCreate")
         object StandByRoom: Screen("standByRoom")
+        object SelectAIKeyword: Screen("selectAIKeyword")
     }
 }

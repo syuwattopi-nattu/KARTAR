@@ -110,6 +110,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                     ).addOnFailureListener { exception ->
                         throw Exception(exception)
                     }
+                    createRoomDatabase.child("player/${FirebaseSingleton.currentUid()}").setValue("ok")
                     /*自身のポイントを初期化*/
                     createRoomDatabase.child("point").setValue(
                         mapOf(
@@ -207,7 +208,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                 val room = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player")
                 room.addListenerForSingleValueEvent(object: ValueEventListener {
                     override fun onDataChange(snapshot: DataSnapshot) {
-                        val allOK = snapshot.children.all { 
+                        val allOK = snapshot.children.all {
                             it.getValue(String::class.java) == "ok"
                         }
                         if (allOK) {
@@ -254,9 +255,10 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             val intent = Intent(context, AugmentedActivity::class.java)
             intent.putExtra("KEYS", keys)
             intent.putExtra("VALUES", values)
-            intent.putExtra("ROOMUID", roomUid.value)
+            intent.putExtra("ROOMUID", enterRoomUid.value)
             intent.putExtra("OWNERUID", ownerUid.value)
             (context as Activity).startActivity(intent)
+            roomUid.value = ""
             //Toast.makeText(context, "全員OK", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.d("エラー", e.message.toString())
@@ -294,12 +296,10 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                     //現在の参加者取得
                     val currentPlayer = mutableListOf<EnterPlayer>()
                     snapshot.child("player").children.forEach { playerSnapshot ->
-                        currentPlayer.add(
-                            EnterPlayer(
+                        currentPlayer.add(EnterPlayer(
                             uid = playerSnapshot.key.toString(),
                             state = playerSnapshot.value.toString()
-                        )
-                        )
+                        ))
                     }
                     //オーナ情報取得
                     val owner = snapshot.child("owner").getValue(owner::class.java)
@@ -331,12 +331,10 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                                     val yomifudaTask = firestore.collection("kartaes").document(kartaUid)
                                         .collection("yomifuda").document(index.toString()).get().await()
 
-                                    currentList.add(
-                                        KARTAData(
+                                    currentList.add(KARTAData(
                                         efuda = efudaTask.get("efuda").toString(),
                                         yomifuda = yomifudaTask.get("yomifuda").toString()
-                                    )
-                                    )
+                                    ))
                                 }
 
                                 if (currentList.size == 44) {
@@ -399,7 +397,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
 
                         userRef.get()
                             .addOnSuccessListener { stateSnapshot ->
-                                if (stateSnapshot.getValue(String::class.java) == "false") {
+                                if (stateSnapshot.getValue(String::class.java) == "enter") {
                                     userRef.setValue("ok")
                                 }
                             }
@@ -419,7 +417,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             }
         })
     }
-    fun stopListeningToRoomInformation() {
+    private fun stopListeningToRoomInformation() {
         val enterRoom = FirebaseSingleton.databaseReference.getReference("room").child(enterRoomUid.value)
         if (roomInformationListener != null) {
             enterRoom.removeEventListener(roomInformationListener!!)

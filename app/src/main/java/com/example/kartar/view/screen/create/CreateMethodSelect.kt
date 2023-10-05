@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.kartar.MainActivity
 import com.example.kartar.controller.ProfileViewModel
 import com.example.myapplication.view.widget.AppBar
 import com.example.kartar.view.widget.button.ButtonContent
@@ -39,7 +40,7 @@ fun CreateMethodSelectScreen(navController: NavController, profileViewModel: Pro
                 Spacer(modifier = Modifier.height(80.dp))
                 OriginalCreateButton(navController = navController)
                 Spacer(modifier = Modifier.height(80.dp))
-                AICreateButton()
+                AICreateButton(navController)
             }
         }
     }
@@ -57,12 +58,12 @@ private fun OriginalCreateButton(navController: NavController) {
 }
 
 @Composable
-private fun AICreateButton() {
+private fun AICreateButton(navController: NavController) {
     ButtonContent(
         modifier = Modifier
             .height(150.dp)
             .width(250.dp),
-        onClick = { /*TODO:AIかるた作成画面移動*/ },
+        onClick = { navController.navigate(MainActivity.Screen.SelectAIKeyword.route) },
         text = "AI作成"
     )
 }

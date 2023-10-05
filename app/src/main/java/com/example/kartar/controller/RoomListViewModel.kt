@@ -96,7 +96,7 @@ class RoomListViewModel(context: Context) : ViewModel() {
                 createRoom.child("roomInfo").child("count").get()
                     .addOnSuccessListener { snapshot ->
                         val currentValue: Int? = snapshot.getValue(Int::class.java)
-                        if (currentValue != null) {
+                        if (currentValue != null && currentValue < 4) {
                             createRoom.child("roomInfo").child("count").setValue(currentValue + 1)
                             //ポイントの初期化
                             val updateMap = HashMap<String, Any>()
@@ -108,11 +108,46 @@ class RoomListViewModel(context: Context) : ViewModel() {
                             createRoom.child("player").updateChildren(playerUpdateMap)
                             roomCreateViewModel.enterRoomUid.value = roomList.value[index].roomUid
                             roomCreateViewModel.roomInformation(navController, context = context)
+                        } else {
+                            Toast.makeText(context, "参加できません..", Toast.LENGTH_SHORT).show()
                         }
                     }
             } catch (e:Exception) {
                 Log.d("エラー", e.message.toString())
             }
+        }
+    }
+
+    /**ランダム入出**/
+    fun randomEnterRoom(navController: NavController, roomCreateViewModel: RoomCreateViewModel, context: Context) {
+        try {
+            if (roomList.value.isNotEmpty()) {
+                val randomItem = roomList.value.random()
+                val database = FirebaseDatabase.getInstance()
+                val createRoom = database.getReference("room").child(randomItem.roomUid)
+                //人数の追加
+                createRoom.child("roomInfo").child("count").get()
+                    .addOnSuccessListener { snapshot ->
+                        val currentValue: Int? = snapshot.getValue(Int::class.java)
+                        if (currentValue != null && currentValue < 4) {
+                            createRoom.child("roomInfo").child("count").setValue(currentValue + 1)
+                            //ポイントの初期化
+                            val updateMap = HashMap<String, Any>()
+                            updateMap[FirebaseAuth.getInstance().currentUser?.uid.toString()] = 0
+                            createRoom.child("point").updateChildren(updateMap)
+                            //参加者登録
+                            val playerUpdateMap = HashMap<String, Any>()
+                            playerUpdateMap[FirebaseAuth.getInstance().currentUser?.uid.toString()] = "enter"
+                            createRoom.child("player").updateChildren(playerUpdateMap)
+                            roomCreateViewModel.enterRoomUid.value = randomItem.roomUid
+                            roomCreateViewModel.roomInformation(navController, context = context)
+                        } else {
+                            Toast.makeText(context, "参加できません..", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+            }
+        } catch (e:Exception) {
+            Log.d("エラー", e.message.toString())
         }
     }
 
@@ -144,15 +179,6 @@ class RoomListViewModel(context: Context) : ViewModel() {
             (context as Activity).startActivity(intent)
         } else {
             Toast.makeText(context, "かるたを選択してください", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun loadAugmentedImageBitmap(context: Context, imageName: String): Bitmap? {
-        return try {
-            context.assets.open(imageName).use { BitmapFactory.decodeStream(it) }
-        } catch (e: IOException) {
-            Log.e(TAG, "IO exception loading augmented image bitmap.", e)
-            null
         }
     }
 }

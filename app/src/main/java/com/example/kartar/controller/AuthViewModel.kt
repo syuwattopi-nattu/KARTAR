@@ -12,6 +12,7 @@ import androidx.navigation.NavController
 import com.example.kartar.MainActivity
 import com.example.kartar.R
 import com.example.kartar.controller.singleton.FirebaseSingleton
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import kotlinx.coroutines.launch
 
 class AuthViewModel(private val profileViewModel: ProfileViewModel): ViewModel() {
@@ -64,16 +65,17 @@ class AuthViewModel(private val profileViewModel: ProfileViewModel): ViewModel()
                         }
                     }
                     .addOnFailureListener { exception ->
-                        throw Exception(exception)
+                        allowShowDialog.value = false
+                        if (exception is FirebaseAuthUserCollisionException) {
+                            Toast.makeText(context, "既に登録されています...", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "登録が失敗しました...", Toast.LENGTH_SHORT).show()
+                        }
                     }
             }
         } catch (e: Exception) {
             allowShowDialog.value = false
-            if (e.message.toString() == "The email address is already in use by another account.") {
-                Toast.makeText(context, "既に登録されています...", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "登録が失敗しました...", Toast.LENGTH_SHORT).show()
-            }
+            Toast.makeText(context, "登録が失敗しました...", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -94,7 +96,9 @@ class AuthViewModel(private val profileViewModel: ProfileViewModel): ViewModel()
                             } else throw Exception()
                         }
                         .addOnFailureListener { exception ->
-                            throw Exception(exception)
+                            showProcessIndicator.value = false
+                            Log.d("エラー", exception.message.toString())
+                            Toast.makeText(context, "ログインに失敗しました", Toast.LENGTH_SHORT).show()
                         }
                 }
             } catch (e: Exception) {
@@ -135,7 +139,9 @@ class AuthViewModel(private val profileViewModel: ProfileViewModel): ViewModel()
                     }
                 }
                 .addOnFailureListener { exception ->
-                    throw Exception(exception)
+                    showProcessIndicator.value = false
+                    Log.d("エラー", exception.message.toString())
+                    Toast.makeText(context, "ログインに失敗しました", Toast.LENGTH_SHORT).show()
                 }
         } catch (e: Exception) {
             showProcessIndicator.value = false

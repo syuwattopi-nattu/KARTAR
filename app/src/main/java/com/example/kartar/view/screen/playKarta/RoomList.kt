@@ -61,7 +61,7 @@ fun RoomListScreen(
                 modifier = Modifier,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                RowButtons(navController = navController)
+                RowButtons(navController = navController, roomCreateViewModel = roomCreateViewModel, roomListViewModel = roomListViewModel)
                 Spacer(modifier = Modifier.height(30.dp))
                 RoomSearchBox(roomListViewModel = roomListViewModel)
                 Spacer(modifier = Modifier.height(30.dp))
@@ -75,7 +75,7 @@ fun RoomListScreen(
 }
 
 @Composable
-private fun RowButtons(navController: NavController) {
+private fun RowButtons(navController: NavController, roomCreateViewModel: RoomCreateViewModel, roomListViewModel: RoomListViewModel) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center
@@ -83,7 +83,7 @@ private fun RowButtons(navController: NavController) {
         Spacer(modifier = Modifier.height(20.dp))
         RoomCreateButton(navController = navController)
         Spacer(modifier = Modifier.width(30.dp))
-        RandomEnterRoomButton()
+        RandomEnterRoomButton(navController = navController, roomCreateViewModel = roomCreateViewModel, roomListViewModel = roomListViewModel)
     }
 }
 
@@ -101,12 +101,13 @@ private fun RoomCreateButton(navController: NavController) {
 }
 
 @Composable
-private fun RandomEnterRoomButton() {
+private fun RandomEnterRoomButton(roomListViewModel: RoomListViewModel, roomCreateViewModel: RoomCreateViewModel, navController: NavController) {
+    val context = LocalContext.current
     ButtonContent(
         modifier = Modifier
             .height(75.dp)
             .width(145.dp),
-        onClick = { /*TODO:部屋作成画面へ遷移*/ },
+        onClick = { roomListViewModel.randomEnterRoom(context = context, roomCreateViewModel = roomCreateViewModel, navController = navController) },
         text = "ランダム\n入出",
         fontSize = 18,
         border = 6

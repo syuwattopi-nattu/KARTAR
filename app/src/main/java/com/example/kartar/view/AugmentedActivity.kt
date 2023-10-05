@@ -107,13 +107,14 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             }
         }
         /*自身の状態をrestにする*/
+        Log.d("stream", augmentedController.roomUid.value)
         FirebaseSingleton.databaseReference.getReference("room/${augmentedController.roomUid.value}/player/${FirebaseSingleton.currentUid()}")
             .setValue("rest")
     }
 
     override fun onStart() {
         if (augmentedController.ownerUid.value == FirebaseSingleton.currentUid()) {
-            augmentedController.upDatePlayerState(this)
+            augmentedController.upDatePlayerState(context = this)
         }
         augmentedController.upDateRoomState(this)
 
@@ -205,7 +206,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         }
     }
 
-    /**権限を要求＆それを許可or拒否した後に呼び出される */
+    /**権限を要求＆それを許可or拒否した後に呼び出される**/
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,
@@ -310,7 +311,8 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         val updatedAugmentedImages = frame.getUpdatedTrackables(
             AugmentedImage::class.java
         )
-        /*augmentedImageMapに新規作成&削除*/for (augmentedImage in updatedAugmentedImages) {
+        /*augmentedImageMapに新規作成&削除*/
+        for (augmentedImage in updatedAugmentedImages) {
             when (augmentedImage.trackingState) {
                 TrackingState.PAUSED -> if (BuildConfig.DEBUG) {  // Only log in debug builds
                     val text = String.format(

@@ -167,7 +167,7 @@ fun KartaDetailRow(kartaUid: String, createViewModel: CreateViewModel) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items(imageFiles?.size ?: 0) { index ->
-            val image = imageFiles?.get(index)?.absoluteFile
+            val image = File(dir, "$index.png").takeIf { it.exists() }
             val yomifuda = sharedPref.getString(index.toString(), "").toString()
             Column(
                 modifier = Modifier.padding(start = 30.dp, end = 30.dp),

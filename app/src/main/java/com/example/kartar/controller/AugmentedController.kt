@@ -31,10 +31,22 @@ class AugmentedController : ViewModel(){
     /*時間になったことを伝えるHandler*/
     private val handler = Handler(Looper.getMainLooper())
 
+    /**初期化**/
+    private fun initProcess() {
+        roomUid.value = ""
+        roomState.value = ""
+        ownerUid.value = ""
+        playedCount.intValue = 0
+        nextGet.value = "あ"
+    }
+
     /**ホストの人が部屋の状態を管理する**/
+
+    private var playerStateListener: ValueEventListener? = null
     fun upDatePlayerState(context: Context) {
+        val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
         try {
-            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").addValueEventListener(object: ValueEventListener {
+            playerStateListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     /*全員状態がrestの場合*/
                     val allRest = snapshot.child("player").children.all {
@@ -56,11 +68,17 @@ class AugmentedController : ViewModel(){
                         it.getValue(String::class.java) == "end"
                     }
                     val gameInfo = snapshot.child("gameInfo").getValue(gameInfo::class.java)
-                    if (gameInfo?.play!! <= gameInfo.now && allEnd) {
+                    /*ゲーム終了処理*/
+                    if ((gameInfo?.play!! <= gameInfo.now) && allEnd) {
+
                         Log.d("終了", "aaa")
+                        ref.removeEventListener(playerStateListener!!)
+                        roomUid.value = ""
                         val intent = Intent(context, MainActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         context.startActivity(intent)
+                        ref.setValue(null)
+                        initProcess()
                     } else if (allEnd) {
                         try {
                             FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
@@ -71,6 +89,7 @@ class AugmentedController : ViewModel(){
                                     if (playerCount == playedCount) {
                                         pointProcess(getSnapshot = getSnapshot)
                                         FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("end")
+                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
                                     }
                                     Log.d("人数", playerCount.toString())
                                 }
@@ -84,7 +103,8 @@ class AugmentedController : ViewModel(){
                 override fun onCancelled(error: DatabaseError) {
 
                 }
-            })
+            }
+            ref.addValueEventListener(playerStateListener!!)
         } catch (e: Exception) {
             Log.d("エラー", e.message.toString())
         }
@@ -99,12 +119,11 @@ class AugmentedController : ViewModel(){
                     timeData[key.toString()] = it.value.toString()
                 }
             }
-            /*ソート*/
             val sortedEntries = timeData.entries.sortedBy { it.value }
             /*点数振り分け*/
             val playRef = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/point")
             sortedEntries.forEachIndexed { index, entry ->
-                if (getSnapshot.child("time").childrenCount < 4) {
+                if (getSnapshot.child("time").childrenCount.toInt() != 4) {
                     Log.d("点数", entry.key)
                     when (index) {
                         0 -> {
@@ -190,7 +209,7 @@ class AugmentedController : ViewModel(){
                         FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
                             .setValue("playing")
                             .addOnFailureListener { e ->
-                                throw Exception(e.message.toString())
+
                             }
                     }
                 }
