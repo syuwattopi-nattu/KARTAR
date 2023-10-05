@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.kartar.controller.AuthViewModel
 import com.example.kartar.controller.CreateViewModel
 import com.example.kartar.controller.KartaSearchViewModel
+import com.example.kartar.controller.MainViewModel
 import com.example.kartar.controller.ProfileViewModel
 import com.example.kartar.controller.RoomCreateViewModel
 import com.example.kartar.controller.RoomListViewModel
@@ -36,7 +37,6 @@ import com.example.kartar.view.screen.playKarta.StandByRoomScreen
 import com.example.kartar.view.screen.playKarta.solo.SoloSetupScreen
 import com.example.kartar.view.screen.profile.ProfileSetupScreen
 import com.example.kartar.view.screen.profile.UserProfileScreen
-import com.example.myapplication.controller.MainViewModel
 
 class MainActivity: ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

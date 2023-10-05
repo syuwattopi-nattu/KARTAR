@@ -31,6 +31,10 @@ class AugmentedController : ViewModel(){
     /*時間になったことを伝えるHandler*/
     private val handler = Handler(Looper.getMainLooper())
 
+    private var nfcText: String? = null
+
+
+
     /**ホストの人が部屋の状態を管理する**/
     fun upDatePlayerState(context: Context) {
         try {
@@ -236,6 +240,20 @@ class AugmentedController : ViewModel(){
         calendar.add(Calendar.SECOND, secondsToAdd)
 
         nextStartTime = calendar.timeInMillis - Calendar.getInstance().timeInMillis
+    }
+
+    /**NFCの正誤判定**/
+    fun setNfcText(text: String) {
+        // NFCから読み取ったテキストとnextGetの値を比較
+        val isTextEqualNextGet = text == nextGet.value
+
+        if (isTextEqualNextGet) {
+            // ここにトゥルーの場合の処理を記述
+            Log.d("setNfcText", "テキストが一致しました: $text")
+        } else {
+            // ここにファルスの場合の処理を記述
+            Log.d("setNfcText", "テキストが一致しません: NFCから読み取ったテキスト: $text, nextGetの値: ${nextGet.value}")
+        }
     }
 
     /**指定時間に処理を行う処理**/

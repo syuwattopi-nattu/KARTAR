@@ -1,8 +1,7 @@
-package com.example.myapplication.controller
+package com.example.kartar.controller
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.example.kartar.controller.ProfileViewModel
 import com.example.kartar.controller.singleton.FirebaseSingleton
 
 class MainViewModel: ViewModel(){
