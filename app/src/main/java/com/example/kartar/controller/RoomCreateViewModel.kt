@@ -173,13 +173,13 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
 
     /**部屋の退出or解散処理**/
     fun exitRoom(navController: NavController) {
-        navController.popBackStack("roomList", false)
         viewModelScope.launch {
             try {
                 val createRoom = FirebaseSingleton.databaseReference.getReference("room").child(enterRoomUid.value)
                 if (ownerUid.value == FirebaseAuth.getInstance().currentUser?.uid) {
                     /*オーナの場合部屋を解散する*/
                     createRoom.setValue(null)
+                    navController.popBackStack("roomList", false)
                 } else {
                     /*参加者の場合部屋を退出する*/
                     createRoom.child("roomInfo").child("count").get()
@@ -192,6 +192,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
                                 createRoom.child("point").child(userId).setValue(null)
                                 //プレーヤー削除
                                 createRoom.child("player").child(userId).setValue(null)
+                                navController.popBackStack("roomList", false)
                             }
                         }
                 }
