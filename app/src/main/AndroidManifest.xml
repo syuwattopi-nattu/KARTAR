@@ -40,11 +40,6 @@
         <activity
             android:name=".view.AugmentedActivity"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
         </activity>
         <meta-data android:name="com.google.ar.core" android:value="required" />
     </application>

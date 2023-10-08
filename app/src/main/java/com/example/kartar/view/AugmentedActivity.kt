@@ -85,6 +85,9 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     @SuppressLint("UnspecifiedImmutableFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("AugmentedActivity", "onCreate started")
+
         setContentView(R.layout.activity_augmentedimage)
         surfaceView = findViewById(R.id.surfaceView)
         displayRotationHelper = DisplayRotationHelper( /*context=*/this)
@@ -214,7 +217,20 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         displayRotationHelper!!.onResume()
         fitToScanView!!.visibility = View.VISIBLE
 
-        //NFCのフォアグラウンドディスパッチを有効化する。
+        /*NFCのフォアグラウンドディスパッチを有効化する。
+        nfcAdapter?.enableReaderMode(
+            this,
+            { tag ->
+                val message = "NFCタグ見つかった: $tag"
+                Log.d("DEBUG_NFC", message)
+                runOnUiThread {
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                }
+            },
+            NfcAdapter.FLAG_READER_NFC_F,
+            null
+        )
+                 */
         nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFilters, null)
     }
 
