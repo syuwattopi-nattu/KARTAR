@@ -64,7 +64,7 @@ class RoomListViewModel(context: Context) : ViewModel() {
                 val currentList = mutableListOf<RoomData>()
                 for (roomSnapshot in snapshot.children) {
                     val roomInfo = roomSnapshot.child("roomInfo").getValue(RoomInfo::class.java)
-                    if (roomInfo?.kind == "public") {
+                    if (roomInfo?.kind == "public" && roomInfo.start == "false") {
                         currentList.add(
                             RoomData(
                                 name = roomInfo.roomName,

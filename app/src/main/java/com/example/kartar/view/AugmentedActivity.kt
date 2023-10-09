@@ -70,6 +70,19 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     // database.
     private val augmentedImageMap: MutableMap<Int, Pair<AugmentedImage, Anchor>> = HashMap()
 
+    // 戻るボタンを無効にするためのメソッド
+    @Deprecated(
+        "Deprecated in Java",
+        ReplaceWith(
+            "Toast.makeText(this, \"ゲーム中は前画面に戻れません!\", Toast.LENGTH_SHORT).show()",
+            "android.widget.Toast",
+            "android.widget.Toast"
+        )
+    )
+    override fun onBackPressed() {
+        Toast.makeText(this, "ゲーム中は前画面に戻れません!", Toast.LENGTH_SHORT).show()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_augmentedimage)
@@ -114,7 +127,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     override fun onStart() {
         if (augmentedController.ownerUid.value == FirebaseSingleton.currentUid()) {
-            augmentedController.upDatePlayerState(context = this)
+            augmentedController.upDatePlayerState()
         }
         augmentedController.upDateRoomState(this)
 

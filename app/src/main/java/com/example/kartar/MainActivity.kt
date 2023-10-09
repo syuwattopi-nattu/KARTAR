@@ -40,12 +40,14 @@ import com.example.kartar.view.screen.profile.UserProfileScreen
 import com.example.myapplication.controller.MainViewModel
 
 class MainActivity: ComponentActivity() {
+    private var navigateToDestination: String? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
             MyAppScreen()
         }
+        navigateToDestination = intent.getStringExtra("NAVIGATE_TO")
     }
 
     @Composable
@@ -61,7 +63,10 @@ class MainActivity: ComponentActivity() {
         val roomCreateViewModel: RoomCreateViewModel = viewModel(factory = RoomCreateViewModelFactory(context))
         val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(profileViewModel = profileViewModel))
         /*最初の画面遷移先を指定*/
-        val startDestination: String = mainViewModel.getStartDestination(profileViewModel = profileViewModel)
+        var startDestination: String = mainViewModel.getStartDestination(profileViewModel = profileViewModel)
+        if (navigateToDestination != null) {
+            startDestination = navigateToDestination as String
+        }
 
         NavHost(
             navController = navController,
