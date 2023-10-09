@@ -70,27 +70,29 @@ class AugmentedController : ViewModel(){
                         it.getValue(String::class.java) == "end"
                     }
                     val gameInfo = snapshot.child("gameInfo").getValue(gameInfo::class.java)
-                    /*ゲーム終了処理*/
-                    if ((gameInfo?.play!! <= gameInfo.now) && allEnd) {
-                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("gameSet")
-                    } else if (allEnd) {
-                        try {
-                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
-                                .addOnSuccessListener { getSnapshot ->
-                                    val playerCount = getSnapshot.child("player").childrenCount
-                                    val playedCount = getSnapshot.child("time").childrenCount
-                                    /*全員プレイ済みの場合*/
-                                    if (playerCount == playedCount) {
-                                        pointProcess(getSnapshot = getSnapshot)
-                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("end")
-                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
+                    if (gameInfo != null) {
+                        /*ゲーム終了処理*/
+                        if ((gameInfo.play <= gameInfo.now) && allEnd) {
+                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("gameSet")
+                        } else if (allEnd) {
+                            try {
+                                FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
+                                    .addOnSuccessListener { getSnapshot ->
+                                        val playerCount = getSnapshot.child("player").childrenCount
+                                        val playedCount = getSnapshot.child("time").childrenCount
+                                        /*全員プレイ済みの場合*/
+                                        if (playerCount == playedCount) {
+                                            pointProcess(getSnapshot = getSnapshot)
+                                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("end")
+                                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
+                                        }
+                                        Log.d("人数", playerCount.toString())
                                     }
-                                    Log.d("人数", playerCount.toString())
-                                }
-                        } catch (e: Exception) {
-                            Log.d("エラー", e.message.toString())
+                            } catch (e: Exception) {
+                                Log.d("エラー", e.message.toString())
+                            }
+                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("result")
                         }
-                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("result")
                     }
                 }
 
@@ -143,8 +145,8 @@ class AugmentedController : ViewModel(){
                                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                     intent.putExtra("ROOM_UID", roomUid.value)
                                     context.startActivity(intent)
-                                    //val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
-                                    //ref.removeEventListener(playerStateListener!!)
+                                    val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
+                                    ref.removeEventListener(playerStateListener!!)
                                 }
                                 val dialog = dialogBuilder.create()
                                 dialog.show()
