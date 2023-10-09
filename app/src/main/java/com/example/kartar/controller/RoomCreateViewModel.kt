@@ -69,7 +69,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
     val playerInformation = mutableStateOf<List<Pair<String, String>>>(listOf())
 
     init {
-        roomUid.value = UUID.randomUUID().toString().replace("-", "")
+        roomUid.value = UUID.randomUUID().toString().replace("-", "").substring(0, 16)
         getKartaDir(context = context)
     }
 

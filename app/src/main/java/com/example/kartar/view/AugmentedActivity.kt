@@ -251,7 +251,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             // 背景のテクスチャを作成してARCore セッションに渡し、update() 中に塗りつぶします。
             backgroundRenderer.createOnGlThread( /*context=*/this)
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to read an asset file", e)
+            //Log.e(TAG, "Failed to read an asset file", e)
         }
     }
 
@@ -333,7 +333,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                         augmentedImage.index,
                         augmentedImage.name
                     )
-                    Log.d("ファイル", augmentedImage.name)
+                    //Log.d("ファイル", augmentedImage.name)
                     messageSnackbarHelper.showMessage(this, text)
                 }
 
@@ -384,7 +384,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                 val key = pair.first
                 val value = pair.second
                 val assetPath = "efuda/$key.png"
-                Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
+                //Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
                 augmentedImageDatabase.addImage(value, loadAugmentedImageBitmap(assetPath))
             }
         }
@@ -397,7 +397,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         try {
             assets.open(imageName).use { `is` -> return BitmapFactory.decodeStream(`is`) }
         } catch (e: IOException) {
-            Log.e(TAG, "IO exception loading augmented image bitmap.", e)
+            //Log.e(TAG, "IO exception loading augmented image bitmap.", e)
         }
         return null
     }

@@ -63,7 +63,7 @@ fun RoomListScreen(
             ) {
                 RowButtons(navController = navController, roomCreateViewModel = roomCreateViewModel, roomListViewModel = roomListViewModel)
                 Spacer(modifier = Modifier.height(30.dp))
-                RoomSearchBox(roomListViewModel = roomListViewModel)
+                RoomSearchBox(roomListViewModel = roomListViewModel, roomCreateViewModel = roomCreateViewModel, navController = navController)
                 Spacer(modifier = Modifier.height(30.dp))
                 Text(text = "部屋一覧")
                 RoomListColumn(roomListViewModel = roomListViewModel, navController, roomCreateViewModel)
@@ -115,11 +115,17 @@ private fun RandomEnterRoomButton(roomListViewModel: RoomListViewModel, roomCrea
 }
 
 @Composable
-fun RoomSearchBox(roomListViewModel: RoomListViewModel) {
+fun RoomSearchBox(roomListViewModel: RoomListViewModel, roomCreateViewModel: RoomCreateViewModel, navController: NavController) {
+    val context = LocalContext.current
     SimpleEditField(
         value = roomListViewModel.searchKeyword.value,
-        placeholder = "1～20文字で入力してください",
-        onClick = { newValue -> roomListViewModel.onSearchBoxChange(newValue) },
+        placeholder = "1～16文字で入力してください",
+        onClick = { newValue -> roomListViewModel.onSearchBoxChange(
+            newValue,
+            context = context,
+            roomCreateViewModel = roomCreateViewModel,
+            navController = navController
+            ) },
         isError = false,
         label = "部屋の検索"
     )
@@ -180,7 +186,7 @@ fun SoloPlayButton(navController: NavController) {
             .height(50.dp)
             .width(240.dp),
         onClick = { navController.navigate("soloSetup") },
-        text = "ひとりで遊ぶ",
+        text = "AR表示の確認をする",
         fontSize = 18,
         border = 6
     )
