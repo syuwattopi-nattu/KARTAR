@@ -110,4 +110,6 @@ dependencies {
     //realtime
     implementation("androidx.compose.runtime:runtime-livedata:1.5.1")
     implementation("com.google.firebase:firebase-database:20.2.2")
+
+
 }

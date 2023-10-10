@@ -1,8 +1,14 @@
 package com.example.kartar.view
 
+import android.annotation.SuppressLint
+import android.app.PendingIntent
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NfcAdapter
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.os.Bundle
@@ -42,7 +48,9 @@ import java.io.IOException
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
+
+class
+AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     /*使うかるたのデータをまとめたリスト*/
     private var pairList: MutableList<Pair<String, String>> = ArrayList()
     /*AugmentedControllerのViewModel*/
@@ -70,6 +78,11 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     // database.
     private val augmentedImageMap: MutableMap<Int, Pair<AugmentedImage, Anchor>> = HashMap()
 
+
+    private var nfcAdapter: NfcAdapter? = null
+    private var pendingIntent: PendingIntent? = null
+    private var intentFilters: Array<IntentFilter>? = null
+
     // 戻るボタンを無効にするためのメソッド
     @Deprecated(
         "Deprecated in Java",
@@ -83,8 +96,12 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         Toast.makeText(this, "ゲーム中は前画面に戻れません!", Toast.LENGTH_SHORT).show()
     }
 
+    @SuppressLint("UnspecifiedImmutableFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("AugmentedActivity", "onCreate started")
+
         setContentView(R.layout.activity_augmentedimage)
         surfaceView = findViewById(R.id.surfaceView)
         displayRotationHelper = DisplayRotationHelper( /*context=*/this)
@@ -123,6 +140,24 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         Log.d("stream", augmentedController.roomUid.value)
         FirebaseSingleton.databaseReference.getReference("room/${augmentedController.roomUid.value}/player/${FirebaseSingleton.currentUid()}")
             .setValue("rest")
+
+        //nfcスキャン用のインスタンスを作成
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+
+        val intent = Intent(this, javaClass).also {
+            it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+
+        val ndefIntentFilter = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).also {
+            try {
+                it.addDataType("text/plain")
+            } catch (e: IntentFilter.MalformedMimeTypeException) {
+                throw RuntimeException("MIMEタイプまちがえてる")
+            }
+        }
+
+        intentFilters = arrayOf(ndefIntentFilter)
     }
 
     override fun onStart() {
@@ -195,6 +230,22 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         surfaceView!!.onResume()
         displayRotationHelper!!.onResume()
         fitToScanView!!.visibility = View.VISIBLE
+
+        /*NFCのフォアグラウンドディスパッチを有効化する。
+        nfcAdapter?.enableReaderMode(
+            this,
+            { tag ->
+                val message = "NFCタグ見つかった: $tag"
+                Log.d("DEBUG_NFC", message)
+                runOnUiThread {
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                }
+            },
+            NfcAdapter.FLAG_READER_NFC_F,
+            null
+        )
+                 */
+        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFilters, null)
     }
 
     override fun onDestroy() {
@@ -217,6 +268,9 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             surfaceView!!.onPause()
             session!!.pause()
         }
+
+        //NFCのフォアグラウンドディスパッチを無効化する。
+        nfcAdapter?.disableForegroundDispatch(this)
     }
 
     /**権限を要求＆それを許可or拒否した後に呼び出される**/
@@ -303,6 +357,29 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             Log.e(TAG, "Exception on the OpenGL thread", t)
         }
     }
+
+    /**NFCタグが検出されたときに呼び出される。*/
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Log.d("DEBUG_NFC", "onNewIntent")
+
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
+            val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+            Log.d("DEBUG_NFC", rawMessages.toString())
+            val message = rawMessages?.map { it as NdefMessage }?.firstOrNull()
+
+            if (message != null) {
+                val record = message.records.firstOrNull()
+                val payload = record?.payload
+                val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
+                Log.d("DEBUG_NFC", "読み取ったテキストは: $text")
+                augmentedController.setNfcText(text)
+            } else {
+                Log.d("DEBUG_NFC", "messageがnull")
+            }
+        }
+    }
+
 
     private fun configureSession() {
         val config = Config(session)
