@@ -78,9 +78,23 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     // database.
     private val augmentedImageMap: MutableMap<Int, Pair<AugmentedImage, Anchor>> = HashMap()
 
+
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFilters: Array<IntentFilter>? = null
+
+    // 戻るボタンを無効にするためのメソッド
+    @Deprecated(
+        "Deprecated in Java",
+        ReplaceWith(
+            "Toast.makeText(this, \"ゲーム中は前画面に戻れません!\", Toast.LENGTH_SHORT).show()",
+            "android.widget.Toast",
+            "android.widget.Toast"
+        )
+    )
+    override fun onBackPressed() {
+        Toast.makeText(this, "ゲーム中は前画面に戻れません!", Toast.LENGTH_SHORT).show()
+    }
 
     @SuppressLint("UnspecifiedImmutableFlag")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,7 +162,7 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     override fun onStart() {
         if (augmentedController.ownerUid.value == FirebaseSingleton.currentUid()) {
-            augmentedController.upDatePlayerState(context = this)
+            augmentedController.upDatePlayerState()
         }
         augmentedController.upDateRoomState(this)
 
@@ -291,7 +305,7 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             // 背景のテクスチャを作成してARCore セッションに渡し、update() 中に塗りつぶします。
             backgroundRenderer.createOnGlThread( /*context=*/this)
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to read an asset file", e)
+            //Log.e(TAG, "Failed to read an asset file", e)
         }
     }
 
@@ -396,7 +410,7 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                         augmentedImage.index,
                         augmentedImage.name
                     )
-                    Log.d("ファイル", augmentedImage.name)
+                    //Log.d("ファイル", augmentedImage.name)
                     messageSnackbarHelper.showMessage(this, text)
                 }
 
@@ -447,7 +461,7 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                 val key = pair.first
                 val value = pair.second
                 val assetPath = "efuda/$key.png"
-                Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
+                //Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
                 augmentedImageDatabase.addImage(value, loadAugmentedImageBitmap(assetPath))
             }
         }
@@ -460,7 +474,7 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         try {
             assets.open(imageName).use { `is` -> return BitmapFactory.decodeStream(`is`) }
         } catch (e: IOException) {
-            Log.e(TAG, "IO exception loading augmented image bitmap.", e)
+            //Log.e(TAG, "IO exception loading augmented image bitmap.", e)
         }
         return null
     }

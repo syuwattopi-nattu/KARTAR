@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
+import android.provider.DocumentsContract.Root
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.mutableIntStateOf
@@ -14,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.bumptech.glide.Glide
+import com.example.kartar.MainActivity
 import com.example.kartar.R
 import com.example.kartar.view.AugmentedActivity
 import com.example.kartar.controller.singleton.FirebaseSingleton
@@ -36,6 +38,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import okhttp3.Route
 import okhttp3.internal.wait
 import java.io.File
 import java.io.FileOutputStream
@@ -66,7 +69,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
     val playerInformation = mutableStateOf<List<Pair<String, String>>>(listOf())
 
     init {
-        roomUid.value = UUID.randomUUID().toString().replace("-", "")
+        roomUid.value = UUID.randomUUID().toString().replace("-", "").substring(0, 16)
         getKartaDir(context = context)
     }
 
@@ -285,7 +288,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
         roomInformationListener = enterRoom.addValueEventListener(object: ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.value == null) {
-                    navController.navigate("roomList")
+                    navController.navigate(MainActivity.Screen.RoomList.route)
                 }else {
                     //現在の参加人数取得
                     val roomInfo = snapshot.child("roomInfo").getValue(RoomInfo::class.java)
