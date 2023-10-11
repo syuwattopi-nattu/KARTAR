@@ -43,54 +43,60 @@ class AugmentedController : ViewModel(){
     /**ホストの人が部屋の状態を管理する**/
     private var playerStateListener: ValueEventListener? = null
     fun upDatePlayerState() {
-        val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
+        val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player")
         try {
             playerStateListener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     /*全員状態がrestの場合*/
-                    val allRest = snapshot.child("player").children.all {
+                    val allRest = snapshot.children.all {
                         it.getValue(String::class.java) == "rest"
                     }
                     if (allRest) {
-                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start")
-                            .setValue("standBy")
+                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
+                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/gameInfo").get()
+                            .addOnSuccessListener { success ->
+                                val gameInfo = success.getValue(gameInfo::class.java)
+                                if (gameInfo != null) {
+                                    if ((gameInfo.play <= gameInfo.now)) {
+                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start")
+                                            .setValue("gameSet")
+                                    } else {
+                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start")
+                                            .setValue("standBy")
+                                    }
+                                }
+                            }
                     }
                     /*全員状態がplayingの場合*/
-                    val allPlaying = snapshot.child("player").children.all {
+                    val allPlaying = snapshot.children.all {
                         it.getValue(String::class.java) == "playing"
                     }
                     if (allPlaying) {
                         FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("game")
                     }
                     /*全員状態がendの場合*/
-                    val allEnd = snapshot.child("player").children.all {
+                    val allEnd = snapshot.children.all {
                         it.getValue(String::class.java) == "end"
                     }
-                    val gameInfo = snapshot.child("gameInfo").getValue(gameInfo::class.java)
-                    if (gameInfo != null) {
-                        /*ゲーム終了処理*/
-                        if ((gameInfo.play <= gameInfo.now) && allEnd) {
-                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("gameSet")
-                        } else if (allEnd) {
-                            try {
-                                FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
-                                    .addOnSuccessListener { getSnapshot ->
-                                        val playerCount = getSnapshot.child("player").childrenCount
-                                        val playedCount = getSnapshot.child("time").childrenCount
-                                        /*全員プレイ済みの場合*/
-                                        if (playerCount == playedCount) {
-                                            pointProcess(getSnapshot = getSnapshot)
-                                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("end")
-                                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
-                                        }
-                                        Log.d("人数", playerCount.toString())
+                    if (allEnd) {
+                        try {
+                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
+                                .addOnSuccessListener { getSnapshot ->
+                                    val playerCount = getSnapshot.child("player").childrenCount
+                                    val playedCount = getSnapshot.child("time").childrenCount
+                                    /*全員プレイ済みの場合*/
+                                    if (playerCount == playedCount) {
+                                        pointProcess(getSnapshot = getSnapshot)
+                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("end")
                                     }
-                            } catch (e: Exception) {
-                                Log.d("エラー", e.message.toString())
-                            }
-                            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("result")
+                                    Log.d("人数", playerCount.toString())
+                                }
+                        } catch (e: Exception) {
+                            Log.d("エラー", e.message.toString())
                         }
+                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo/start").setValue("result")
                     }
+
                 }
 
                 override fun onCancelled(error: DatabaseError) {
@@ -121,8 +127,34 @@ class AugmentedController : ViewModel(){
                                 gameStateProcess(context = context)
                             }
                             "end" -> {
-                                FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
-                                    .setValue("rest")
+                                try {
+                                    FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}").get()
+                                        .addOnSuccessListener { getSnapshot ->
+                                            val timeData = mutableMapOf<String, String>()
+                                            getSnapshot.child("time").children.forEach {
+                                                it.key.let { key ->
+                                                    timeData[key.toString()] = it.value.toString()
+                                                }
+                                            }
+                                            val sortedEntries = timeData.entries.sortedBy { it.value }
+
+                                            val index = sortedEntries.indexOfFirst { it.key == FirebaseSingleton.currentUid() }
+                                            if (index != -1) {
+                                                val alertDialog = AlertDialog.Builder(context)
+                                                    .setTitle("結果がでました")
+                                                    .setMessage("あなたは${index + 1}位です!\n取得時間:${sortedEntries[index].value}")
+                                                    .setPositiveButton("OK") { _, _ ->
+                                                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
+                                                            .setValue("rest")
+                                                    }
+                                                    .create()
+
+                                                alertDialog.show()
+                                            }
+                                        }
+                                } catch (e: Exception) {
+                                    Log.d("エラー", e.message.toString())
+                                }
                             }
                             "gameSet" -> {
                                 roomRef.removeEventListener(roomStateListener!!)
@@ -219,6 +251,7 @@ class AugmentedController : ViewModel(){
     /**部屋の状態が「standBy」だった場合の処理**/
     fun standByStateProcess() {
         try {
+            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time").setValue(null)
             FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/gameInfo").addListenerForSingleValueEvent(object: ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val gameInfo = snapshot.getValue(gameInfo::class.java)
@@ -277,7 +310,9 @@ class AugmentedController : ViewModel(){
         nextStartTime = calendar.timeInMillis - Calendar.getInstance().timeInMillis
     }
 
-    /**NFCの正誤判定**/
+    /**
+     * NFCの正誤判定
+     */
     fun setNfcText(text: String, context: Context) {
         Log.d("setNfcText", "正誤反転をします")
         // NFCから読み取ったテキストとnextGetの値を比較
