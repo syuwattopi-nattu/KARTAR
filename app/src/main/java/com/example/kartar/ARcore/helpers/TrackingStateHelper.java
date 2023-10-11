@@ -16,6 +16,7 @@
 package com.example.kartar.ARcore.helpers;
 
 import android.app.Activity;
+import android.util.Log;
 import android.view.WindowManager;
 
 import com.google.ar.core.Camera;

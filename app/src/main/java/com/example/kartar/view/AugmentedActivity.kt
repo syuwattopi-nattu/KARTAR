@@ -11,12 +11,17 @@ import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.Pair
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
@@ -44,15 +49,16 @@ import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
 import com.google.firebase.appcheck.interop.BuildConfig
+import kotlinx.coroutines.delay
 import java.io.IOException
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 
-class
-AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
+class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     /*使うかるたのデータをまとめたリスト*/
     private var pairList: MutableList<Pair<String, String>> = ArrayList()
+
     /*AugmentedControllerのViewModel*/
     val augmentedController = AugmentedController()
 
@@ -96,7 +102,8 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         Toast.makeText(this, "ゲーム中は前画面に戻れません!", Toast.LENGTH_SHORT).show()
     }
 
-    @SuppressLint("UnspecifiedImmutableFlag")
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -106,6 +113,28 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         surfaceView = findViewById(R.id.surfaceView)
         displayRotationHelper = DisplayRotationHelper( /*context=*/this)
 
+        val fullScreenView = findViewById<View>(R.id.fullscreen_view)
+        fullScreenView.setOnTouchListener { view, touchEvent ->
+            when (touchEvent.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (augmentedController.nfcEnable.value) {
+                        pauseCamera()
+                    }
+                }
+                MotionEvent.ACTION_UP or MotionEvent.ACTION_CANCEL -> {
+                    if (session != null) {
+                        try {
+                            session?.resume()
+                            surfaceView?.onResume()
+                            displayRotationHelper?.onResume()
+                        } catch (e: CameraNotAvailableException) {
+                            // エラーハンドリングをここに実装
+                        }
+                    }
+                }
+            }
+            return@setOnTouchListener false
+        }
         // Set up renderer.
         surfaceView?.apply {
             preserveEGLContextOnPause = true
@@ -115,7 +144,6 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             setWillNotDraw(false)
         }
-
         fitToScanView = findViewById(R.id.image_view_fit_to_scan)
         if (fitToScanView != null) {
             glideRequestManager = Glide.with(this)
@@ -143,11 +171,26 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
         //nfcスキャン用のインスタンスを作成
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        if (nfcAdapter != null) {
+            Log.d("DEBUG_NFC", "nullではない!")
+        } else {
+            Log.d("DEBUG_NFC", "nullです!")
+        }
 
         val intent = Intent(this, javaClass).also {
             it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            flags
+        )
 
         val ndefIntentFilter = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).also {
             try {
@@ -171,6 +214,9 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     override fun onResume() {
         super.onResume()
+        Log.d("NFC_Debug", "Enabling NFC foreground dispatch")
+        nfcAdapter!!.enableForegroundDispatch(this, pendingIntent, intentFilters, null)
+        Log.d("NFC_Debug", "NFC foreground dispatch enabled")
         if (session == null) {
             var exception: Exception? = null
             var message: String? = null
@@ -231,21 +277,8 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         displayRotationHelper!!.onResume()
         fitToScanView!!.visibility = View.VISIBLE
 
-        /*NFCのフォアグラウンドディスパッチを有効化する。
-        nfcAdapter?.enableReaderMode(
-            this,
-            { tag ->
-                val message = "NFCタグ見つかった: $tag"
-                Log.d("DEBUG_NFC", message)
-                runOnUiThread {
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                }
-            },
-            NfcAdapter.FLAG_READER_NFC_F,
-            null
-        )
-                 */
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFilters, null)
+        //pauseCamera()
+        //handler.post(toggleCameraRunnable)
     }
 
     override fun onDestroy() {
@@ -262,15 +295,18 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     public override fun onPause() {
         super.onPause()
+        handler.removeCallbacks(toggleCameraRunnable)
+        Log.d("NFC_Debug", "Disabling NFC foreground dispatch")
+        nfcAdapter?.disableForegroundDispatch(this)
+        Log.d("NFC_Debug", "NFC foreground dispatch disabled")
+
         /*順番が重要!GLSurfaceViewは、セッションを問い合わせようとしないように最初に一時停止する。
-    　SessionがGLSurfaceViewの前に一時停止されると、GLSurfaceViewはsession.update()を呼び出すことがありSessionPausedExceptionが発生するかも。*/if (session != null) {
+    　SessionがGLSurfaceViewの前に一時停止されると、GLSurfaceViewはsession.update()を呼び出すことがありSessionPausedExceptionが発生するかも。*/
+        if (session != null) {
             displayRotationHelper!!.onPause()
             surfaceView!!.onPause()
             session!!.pause()
         }
-
-        //NFCのフォアグラウンドディスパッチを無効化する。
-        nfcAdapter?.disableForegroundDispatch(this)
     }
 
     /**権限を要求＆それを許可or拒否した後に呼び出される**/
@@ -354,14 +390,19 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             drawAugmentedImages(frame, projmtx, viewmtx, colorCorrectionRgba)
         } catch (t: Throwable) {
             // Avoid crashing the application due to unhandled exceptions.
-            Log.e(TAG, "Exception on the OpenGL thread", t)
+            //Log.e(TAG, "Exception on the OpenGL thread", t)
         }
     }
 
     /**NFCタグが検出されたときに呼び出される。*/
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+
         Log.d("DEBUG_NFC", "onNewIntent")
+
+        runOnUiThread {
+            //Toast.makeText(this, "onNewIntent", Toast.LENGTH_SHORT).show()
+        }
 
         if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
             val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
@@ -373,11 +414,58 @@ AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                 val payload = record?.payload
                 val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
                 Log.d("DEBUG_NFC", "読み取ったテキストは: $text")
-                augmentedController.setNfcText(text)
+                runOnUiThread {
+                    //Toast.makeText(this, "読み取ったテキストは: $text", Toast.LENGTH_SHORT).show()
+                }
+                augmentedController.setNfcText(text, this)
             } else {
                 Log.d("DEBUG_NFC", "messageがnull")
             }
         }
+    }
+
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val toggleCameraRunnable = object : Runnable {
+        override fun run() {
+            if (session != null) {
+                if (isCameraRunning) {
+                    try {
+                        session!!.pause()
+                        isCameraRunning = false
+                        handler.postDelayed(this, 100) // 0.5 seconds pause
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Exception pausing the session", e)
+                    }
+                } else {
+                    try {
+                        session!!.resume()
+                        isCameraRunning = true
+                        handler.postDelayed(this, 2000) // 2 seconds run
+                    } catch (e: CameraNotAvailableException) {
+                        Log.e(TAG, "Camera not available when trying to resume", e)
+                    }
+                }
+            }
+        }
+    }
+    private var isCameraRunning = true
+
+    private fun pauseCamera() {
+        session?.pause()
+        surfaceView?.onPause()
+        displayRotationHelper?.onPause()
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (session != null) {
+                try {
+                    session?.resume()
+                    surfaceView?.onResume()
+                    displayRotationHelper?.onResume()
+                } catch (e: CameraNotAvailableException) {
+                    // エラーハンドリングをここに実装
+                }
+            }
+        }, 600)
     }
 
 

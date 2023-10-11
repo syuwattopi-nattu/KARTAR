@@ -41,13 +41,15 @@ import com.example.myapplication.controller.MainViewModel
 
 class MainActivity: ComponentActivity() {
     private var navigateToDestination: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        navigateToDestination = intent.getStringExtra("NAVIGATE_TO")
 
         setContent {
             MyAppScreen()
         }
-        navigateToDestination = intent.getStringExtra("NAVIGATE_TO")
     }
 
     @Composable

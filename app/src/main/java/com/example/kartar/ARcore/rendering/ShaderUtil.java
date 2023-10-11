@@ -60,7 +60,7 @@ public final class ShaderUtil {
 
     // If the compilation failed, delete the shader.
     if (compileStatus[0] == 0) {
-      Log.e(tag, "Error compiling shader: " + GLES20.glGetShaderInfoLog(shader));
+      //Log.e(tag, "Error compiling shader: " + GLES20.glGetShaderInfoLog(shader));
       GLES20.glDeleteShader(shader);
       shader = 0;
     }
@@ -90,7 +90,7 @@ public final class ShaderUtil {
     // Drain the queue of all errors.
     int error;
     while ((error = GLES20.glGetError()) != GLES20.GL_NO_ERROR) {
-      Log.e(tag, label + ": glError " + error);
+      //Log.e(tag, label + ": glError " + error);
       lastError = error;
     }
     if (lastError != GLES20.GL_NO_ERROR) {

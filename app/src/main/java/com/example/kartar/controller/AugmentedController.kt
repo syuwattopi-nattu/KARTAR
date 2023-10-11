@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.example.kartar.GameResultActivity
@@ -20,6 +21,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class AugmentedController : ViewModel(){
     /*部屋の情報*/
@@ -32,20 +34,13 @@ class AugmentedController : ViewModel(){
     private var nextStartTime: Long = Calendar.getInstance().timeInMillis
     /*時間になったことを伝えるHandler*/
     private val handler = Handler(Looper.getMainLooper())
+    /*NFC取得*/
+    val nfcEnable = mutableStateOf(false)
+    val playStartTime = mutableLongStateOf(Calendar.getInstance().timeInMillis)
 
     private var nfcText: String? = null
 
-    /**初期化**/
-    private fun initProcess() {
-        roomUid.value = ""
-        roomState.value = ""
-        ownerUid.value = ""
-        playedCount.intValue = 0
-        nextGet.value = "あ"
-    }
-
     /**ホストの人が部屋の状態を管理する**/
-
     private var playerStateListener: ValueEventListener? = null
     fun upDatePlayerState() {
         val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
@@ -283,16 +278,61 @@ class AugmentedController : ViewModel(){
     }
 
     /**NFCの正誤判定**/
-    fun setNfcText(text: String) {
+    fun setNfcText(text: String, context: Context) {
+        Log.d("setNfcText", "正誤反転をします")
         // NFCから読み取ったテキストとnextGetの値を比較
-        val isTextEqualNextGet = text == nextGet.value
+        val isTextEqualNextGet = text.last().toString() == nextGet.value
 
         if (isTextEqualNextGet) {
             // ここにトゥルーの場合の処理を記述
+            val endTime = System.currentTimeMillis()
+            val elapsedTimeMillis = endTime - playStartTime.longValue
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedTimeMillis)
+            val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTimeMillis) % 60
+
+            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time/${FirebaseSingleton.currentUid()}").setValue("$minutes:$seconds")
+                .addOnSuccessListener {
+                    FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
+                        .setValue("end")
+                }
+            nfcEnable.value = false
             Log.d("setNfcText", "テキストが一致しました: $text")
         } else {
             // ここにファルスの場合の処理を記述
+            otetukiDialog(context = context)
             Log.d("setNfcText", "テキストが一致しません: NFCから読み取ったテキスト: $text, nextGetの値: ${nextGet.value}")
+        }
+    }
+
+    /**
+     * おてつきdialogの表示
+     */
+    private fun otetukiDialog(context: Context) {
+        nfcEnable.value = false
+        val alertDialog = AlertDialog.Builder(context)
+            .setTitle("おてつきです!")
+            .setMessage("減点します...")
+            .create()
+
+        alertDialog.show()
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (alertDialog.isShowing) {
+                alertDialog.dismiss()
+            }
+            nfcEnable.value = true
+        }, 3000) // 2秒後に閉じる
+        try {
+            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/point/${FirebaseSingleton.currentUid()}").get()
+                .addOnSuccessListener { currentPoint ->
+                    val pointValue = currentPoint.getValue(Int::class.java)
+                    if (pointValue != null && pointValue > 0) {
+                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/point/${FirebaseSingleton.currentUid()}")
+                            .setValue(pointValue - 1)
+                    }
+                }
+        } catch (e: Exception) {
+            Log.d("エラー", e.message.toString())
         }
     }
 
@@ -301,12 +341,17 @@ class AugmentedController : ViewModel(){
         Log.d("定刻", "is$nextStartTime")
         handler.postDelayed({
             try {
+                nfcEnable.value = true
+                playStartTime.longValue = System.currentTimeMillis()
                 /*TODO:取得した時間を記録する*/
+                /*
                 FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time/${FirebaseSingleton.currentUid()}").setValue("01:30")
                     .addOnSuccessListener {
                         FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
                             .setValue("end")
                     }
+
+                 */
             } catch (e: Exception) {
                 Log.d("エラー", e.message.toString())
             }
