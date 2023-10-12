@@ -257,6 +257,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             val keys = filePathList.map { it.first }.toTypedArray()
             val values = filePathList.map { it.second }.toTypedArray()
             stopListeningToRoomInformation()
+
             /*AugmentImageに画面遷移*/
             val intent = Intent(context, AugmentedActivity::class.java)
             intent.putExtra("KEYS", keys)

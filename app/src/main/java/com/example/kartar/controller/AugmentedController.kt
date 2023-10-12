@@ -5,11 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.kartar.GameResultActivity
 import com.example.kartar.MainActivity
@@ -17,20 +21,23 @@ import com.example.kartar.MainActivity
 import com.example.kartar.controller.singleton.FirebaseSingleton
 import com.example.kartar.model.realTimeDatabase.RoomInfo
 import com.example.kartar.model.realTimeDatabase.gameInfo
+import com.google.ar.core.Session
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-class AugmentedController : ViewModel(){
+class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
     /*部屋の情報*/
     val roomUid = mutableStateOf("")
     val roomState = mutableStateOf("")
     val ownerUid = mutableStateOf("")
     /*ゲームの情報*/
     private val playedCount = mutableIntStateOf(0)
-    private val nextGet = mutableStateOf("あ")
+    val nextGet = mutableStateOf("あ")
     private var nextStartTime: Long = Calendar.getInstance().timeInMillis
     /*時間になったことを伝えるHandler*/
     private val handler = Handler(Looper.getMainLooper())
@@ -39,6 +46,9 @@ class AugmentedController : ViewModel(){
     val playStartTime = mutableLongStateOf(Calendar.getInstance().timeInMillis)
 
     private var nfcText: String? = null
+
+    private var textToSpeech: TextToSpeech? = null
+    val speechAllow: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     /**ホストの人が部屋の状態を管理する**/
     private var playerStateListener: ValueEventListener? = null
@@ -375,9 +385,10 @@ class AugmentedController : ViewModel(){
     private fun scheduleToast(context: Context) {
         Log.d("定刻", "is$nextStartTime")
         handler.postDelayed({
+            speechAllow.value = true
             try {
                 nfcEnable.value = true
-                playStartTime.longValue = System.currentTimeMillis()
+
                 /*TODO:取得した時間を記録する*/
                 /*
                 FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time/${FirebaseSingleton.currentUid()}").setValue("01:30")
@@ -393,5 +404,23 @@ class AugmentedController : ViewModel(){
             Log.d("定刻", "Setting delay to: $nextStartTime milliseconds")
             Toast.makeText(context, nextGet.value, Toast.LENGTH_SHORT).show()
         }, nextStartTime)
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            Log.d("speach", "成功")
+            textToSpeech?.let { tts ->
+                val locale = Locale.JAPAN
+                if (tts.isLanguageAvailable(locale) > TextToSpeech.LANG_AVAILABLE) {
+                    tts.language = Locale.JAPAN
+                } else {
+                    // 言語の設定に失敗
+                }
+            }
+
+        } else {
+            Log.d("speach", "失敗")
+            // Tts init 失敗
+        }
     }
 }

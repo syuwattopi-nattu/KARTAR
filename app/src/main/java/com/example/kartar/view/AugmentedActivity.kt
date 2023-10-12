@@ -53,9 +53,15 @@ import kotlinx.coroutines.delay
 import java.io.IOException
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 
-class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
+class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpeech.OnInitListener {
+    private var textToSpeech: TextToSpeech? = null
     /*使うかるたのデータをまとめたリスト*/
     private var pairList: MutableList<Pair<String, String>> = ArrayList()
 
@@ -201,6 +207,28 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         }
 
         intentFilters = arrayOf(ndefIntentFilter)
+
+        lifecycleScope.launch {
+            augmentedController.speechAllow.collect {it: Boolean ->
+                session?.pause()
+                surfaceView?.onPause()
+                displayRotationHelper?.onPause()
+                textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startSpeak(augmentedController.nextGet.value, true)
+                    if (session != null) {
+                        try {
+                            session?.resume()
+                            surfaceView?.onResume()
+                            displayRotationHelper?.onResume()
+                            augmentedController.playStartTime.longValue = System.currentTimeMillis()
+                        } catch (e: CameraNotAvailableException) {
+                            // エラーハンドリングをここに実装
+                        }
+                    }
+                }, 100)
+            }
+        }
     }
 
     override fun onStart() {
@@ -570,5 +598,41 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     companion object {
         //ARcoreにもともとあった値
         private val TAG = AugmentedActivity::class.java.simpleName
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            Log.d("speach", "成功")
+            textToSpeech?.let { tts ->
+                val locale = Locale.JAPAN
+                if (tts.isLanguageAvailable(locale) > TextToSpeech.LANG_AVAILABLE) {
+                    tts.language = Locale.JAPAN
+                } else {
+                    // 言語の設定に失敗
+                }
+            }
+
+        } else {
+            Log.d("speach", "失敗")
+            // Tts init 失敗
+        }
+    }
+
+    private fun startSpeak(text: String, isImmediately: Boolean){
+        Log.d("speach", "startspeak")
+        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
+        textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onDone(utteranceId: String) {
+                Log.d("speach", "onDone")
+            }
+
+            override fun onError(utteranceId: String) {
+                Log.d("speach", "error")
+            }
+
+            override fun onStart(utteranceId: String) {
+                Log.d("speach", "onstart")
+            }
+        })
     }
 }
