@@ -26,6 +26,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.io.File
 import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,7 @@ class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
     val roomUid = mutableStateOf("")
     val roomState = mutableStateOf("")
     val ownerUid = mutableStateOf("")
+    val yomifuda = mutableStateOf<List<String>>(listOf())
     /*ゲームの情報*/
     private val playedCount = mutableIntStateOf(0)
     val nextGet = mutableStateOf("あ")

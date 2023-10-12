@@ -238,6 +238,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
     /**AugmentedImageActivityに画面遷移**/
     fun sendAugmentImageActivity(context: Context) {
         try {
+            stopListeningToRoomInformation()
             /*かるたの画像を取得*/
             val dir = File(context.filesDir, "karta/${playKartaUid.value}")
             val allFiles = dir.listFiles()
@@ -256,7 +257,13 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             }
             val keys = filePathList.map { it.first }.toTypedArray()
             val values = filePathList.map { it.second }.toTypedArray()
-            stopListeningToRoomInformation()
+
+            val yomifuda = mutableListOf<String>()
+            val sharedPreferences =  context.getSharedPreferences(playKartaUid.value, Context.MODE_PRIVATE)
+            for (i in 0..43) {
+                yomifuda.add(sharedPreferences.getString(i.toString(), "あああ").toString())
+                Log.d("yomifuda", "$i:${sharedPreferences.getString(i.toString(), "あああ").toString()}")
+            }
 
             /*AugmentImageに画面遷移*/
             val intent = Intent(context, AugmentedActivity::class.java)
@@ -264,6 +271,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             intent.putExtra("VALUES", values)
             intent.putExtra("ROOMUID", enterRoomUid.value)
             intent.putExtra("OWNERUID", ownerUid.value)
+            intent.putExtra("YOMIFUDA", yomifuda.toTypedArray())
             (context as Activity).startActivity(intent)
             roomUid.value = ""
             //Toast.makeText(context, "全員OK", Toast.LENGTH_SHORT).show()
@@ -286,7 +294,7 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
     fun roomInformation(navController: NavController, context: Context) {
         val enterRoom = FirebaseSingleton.databaseReference.getReference("room").child(enterRoomUid.value)
         navController.navigate("standByRoom")
-        roomInformationListener = enterRoom.addValueEventListener(object: ValueEventListener {
+        roomInformationListener = object: ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.value == null) {
                     navController.navigate(MainActivity.Screen.RoomList.route)
@@ -422,14 +430,13 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             override fun onCancelled(error: DatabaseError) {
                 TODO("Not yet implemented")
             }
-        })
+        }
+        enterRoom.addValueEventListener(roomInformationListener!!)
     }
     private fun stopListeningToRoomInformation() {
         val enterRoom = FirebaseSingleton.databaseReference.getReference("room").child(enterRoomUid.value)
-        if (roomInformationListener != null) {
-            enterRoom.removeEventListener(roomInformationListener!!)
-            roomInformationListener = null
-        }
+        enterRoom.removeEventListener(roomInformationListener!!)
+        roomInformationListener = null
     }
 
     fun getPlayerProfile() {

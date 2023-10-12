@@ -64,7 +64,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
     private var textToSpeech: TextToSpeech? = null
     /*使うかるたのデータをまとめたリスト*/
     private var pairList: MutableList<Pair<String, String>> = ArrayList()
-
+    private var yomifuda: MutableList<String> = ArrayList()
     /*AugmentedControllerのViewModel*/
     val augmentedController = AugmentedController()
 
@@ -162,6 +162,14 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
         /*画面遷移元からもらう値*/
         val keys = intent.getStringArrayExtra("KEYS")
         val values = intent.getStringArrayExtra("VALUES")
+        val yomifuda = intent.getStringArrayExtra("YOMIFUDA")
+
+        val currentList = mutableListOf<String>()
+        for (i in 0..43) {
+            currentList.add(yomifuda?.get(i) ?: "よみふだがありません")
+        }
+        augmentedController.yomifuda.value = currentList
+
         augmentedController.roomUid.value = intent.getStringExtra("ROOMUID").toString()
         augmentedController.ownerUid.value = intent.getStringExtra("OWNERUID").toString()
         /*今回使うかるたデータをリスト化*/
@@ -210,23 +218,44 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
 
         lifecycleScope.launch {
             augmentedController.speechAllow.collect {it: Boolean ->
-                session?.pause()
-                surfaceView?.onPause()
-                displayRotationHelper?.onPause()
-                textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    startSpeak(augmentedController.nextGet.value, true)
-                    if (session != null) {
-                        try {
-                            session?.resume()
-                            surfaceView?.onResume()
-                            displayRotationHelper?.onResume()
-                            augmentedController.playStartTime.longValue = System.currentTimeMillis()
-                        } catch (e: CameraNotAvailableException) {
-                            // エラーハンドリングをここに実装
+                if (it) {
+                    augmentedController.speechAllow.value = false
+                    session?.pause()
+                    surfaceView?.onPause()
+                    displayRotationHelper?.onPause()
+                    textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        startSpeak(augmentedController.nextGet.value, true)
+                        if (session != null) {
+                            try {
+                                session?.resume()
+                                surfaceView?.onResume()
+                                displayRotationHelper?.onResume()
+                                augmentedController.playStartTime.longValue = System.currentTimeMillis()
+                                session?.pause()
+                                surfaceView?.onPause()
+                                displayRotationHelper?.onPause()
+                                textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    val result = yomifuda?.firstOrNull { it.startsWith(augmentedController.nextGet.value) }
+                                    startSpeak(result.toString(), true)
+                                    if (session != null) {
+                                        try {
+                                            session?.resume()
+                                            surfaceView?.onResume()
+                                            displayRotationHelper?.onResume()
+                                            augmentedController.playStartTime.longValue = System.currentTimeMillis()
+                                        } catch (e: CameraNotAvailableException) {
+                                            // エラーハンドリングをここに実装
+                                        }
+                                    }
+                                }, 100)
+                            } catch (e: CameraNotAvailableException) {
+                                // エラーハンドリングをここに実装
+                            }
                         }
-                    }
-                }, 100)
+                    }, 100)
+                }
             }
         }
     }
@@ -304,9 +333,6 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
         surfaceView!!.onResume()
         displayRotationHelper!!.onResume()
         fitToScanView!!.visibility = View.VISIBLE
-
-        //pauseCamera()
-        //handler.post(toggleCameraRunnable)
     }
 
     override fun onDestroy() {
@@ -438,6 +464,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
             val message = rawMessages?.map { it as NdefMessage }?.firstOrNull()
 
             if (message != null) {
+                Log.d("DEBUG_NFC", "読み取ったテキスト")
                 val record = message.records.firstOrNull()
                 val payload = record?.payload
                 val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
@@ -449,6 +476,25 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
             } else {
                 Log.d("DEBUG_NFC", "messageがnull")
             }
+        } else {
+            val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+            Log.d("DEBUG_NFC", rawMessages.toString())
+            val message = rawMessages?.map { it as NdefMessage }?.firstOrNull()
+
+            if (message != null) {
+                Log.d("DEBUG_NFC", "読み取ったテキスト")
+                val record = message.records.firstOrNull()
+                val payload = record?.payload
+                val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
+                Log.d("DEBUG_NFC", "読み取ったテキストは: $text")
+                runOnUiThread {
+                    //Toast.makeText(this, "読み取ったテキストは: $text", Toast.LENGTH_SHORT).show()
+                }
+                augmentedController.setNfcText(text, this)
+            } else {
+                Log.d("DEBUG_NFC", "messageがnull")
+            }
+
         }
     }
 
