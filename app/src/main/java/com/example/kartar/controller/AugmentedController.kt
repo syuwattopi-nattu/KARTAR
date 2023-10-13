@@ -1,5 +1,6 @@
 package com.example.kartar.controller
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -148,7 +149,7 @@ class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
                                                     timeData[key.toString()] = it.value.toString()
                                                 }
                                             }
-                                            val sortedEntries = timeData.entries.sortedBy { it.value }
+                                            val sortedEntries = timeData.entries.sortedByDescending { it.value }
 
                                             val index = sortedEntries.indexOfFirst { it.key == FirebaseSingleton.currentUid() }
                                             if (index != -1) {
@@ -186,8 +187,15 @@ class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
                                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                     intent.putExtra("ROOM_UID", roomUid.value)
                                     context.startActivity(intent)
-                                    val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
-                                    ref.removeEventListener(playerStateListener!!)
+                                    if (playerStateListener != null) {
+                                        val ref = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}")
+                                        ref.removeEventListener(playerStateListener!!)
+                                    }
+                                    if (roomStateListener != null) {
+                                        val ref2 = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/roomInfo")
+                                        ref2.removeEventListener(roomStateListener!!)
+                                    }
+                                    (context as Activity).finish()
                                 }
                                 val dialog = dialogBuilder.create()
                                 dialog.show()
@@ -215,7 +223,8 @@ class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
                     timeData[key.toString()] = it.value.toString()
                 }
             }
-            val sortedEntries = timeData.entries.sortedBy { it.value }
+            val sortedEntries = timeData.entries.sortedByDescending { it.value }
+            Log.d("sortBy", sortedEntries.toString())
             /*点数振り分け*/
             val playRef = FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/point")
             sortedEntries.forEachIndexed { index, entry ->
@@ -337,13 +346,21 @@ class AugmentedController : ViewModel(), TextToSpeech.OnInitListener {
             val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedTimeMillis)
             val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTimeMillis) % 60
 
-            FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time/${FirebaseSingleton.currentUid()}").setValue("$minutes:$seconds")
-                .addOnSuccessListener {
-                    FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
-                        .setValue("end")
-                }
             nfcEnable.value = false
             Log.d("setNfcText", "テキストが一致しました: $text")
+            val dialogBuilder = AlertDialog.Builder(context)
+            dialogBuilder.setTitle("取得しました!")
+            dialogBuilder.setMessage("みんなが終わるまでお待ちください...")
+            dialogBuilder.setPositiveButton("OK") { _, _ ->
+                FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/time/${FirebaseSingleton.currentUid()}").setValue("$minutes:$seconds")
+                    .addOnSuccessListener {
+                        FirebaseSingleton.databaseReference.getReference("room/${roomUid.value}/player/${FirebaseSingleton.currentUid()}")
+                            .setValue("end")
+                    }
+                Log.d("終了", "aaa")
+            }
+            val dialog = dialogBuilder.create()
+            dialog.show()
         } else {
             // ここにファルスの場合の処理を記述
             otetukiDialog(context = context)

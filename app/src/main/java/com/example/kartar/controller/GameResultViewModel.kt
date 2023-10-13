@@ -76,7 +76,7 @@ class GameResultViewModel: ViewModel() {
         /*Main画面に移動*/
         val intent = Intent(context, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        intent.putExtra("NAVIGATE_TO", MainActivity.Screen.RoomList.route)
+        //intent.putExtra("NAVIGATE_TO", MainActivity.Screen.RoomList.route)
         context.startActivity(intent)
     }
 }

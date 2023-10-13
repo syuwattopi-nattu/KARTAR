@@ -17,6 +17,7 @@ import com.example.kartar.controller.RoomCreateViewModel
 import com.example.kartar.controller.RoomListViewModel
 import com.example.kartar.controller.viewModelFactory.AuthViewModelFactory
 import com.example.kartar.controller.viewModelFactory.CreateViewModelFactory
+import com.example.kartar.controller.viewModelFactory.KartaSearchViewModelFactory
 import com.example.kartar.controller.viewModelFactory.ProfileViewModelFactory
 import com.example.kartar.controller.viewModelFactory.RoomCreateViewModelFactory
 import com.example.kartar.controller.viewModelFactory.RoomListViewModelFactory
@@ -58,10 +59,10 @@ class MainActivity: ComponentActivity() {
         val context = LocalContext.current
         /*viewModelの作成*/
         val mainViewModel: MainViewModel = viewModel()
-        val kartaSearchViewModel: KartaSearchViewModel = viewModel()
         val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory(context, navController))
         val roomListViewModel: RoomListViewModel = viewModel(factory = RoomListViewModelFactory(context))
         val createViewModel: CreateViewModel = viewModel(factory = CreateViewModelFactory(context))
+        val kartaSearchViewModel: KartaSearchViewModel = viewModel(factory = KartaSearchViewModelFactory(createViewModel))
         val roomCreateViewModel: RoomCreateViewModel = viewModel(factory = RoomCreateViewModelFactory(context))
         val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(profileViewModel = profileViewModel))
         /*最初の画面遷移先を指定*/

@@ -268,13 +268,13 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
             /*AugmentImageに画面遷移*/
             val intent = Intent(context, AugmentedActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-
             intent.putExtra("KEYS", keys)
             intent.putExtra("VALUES", values)
             intent.putExtra("ROOMUID", enterRoomUid.value)
             intent.putExtra("OWNERUID", ownerUid.value)
             intent.putExtra("YOMIFUDA", yomifuda.toTypedArray())
-            (context as Activity).startActivity(intent)
+            (context as Activity).finish()
+            context.startActivity(intent)
             roomUid.value = ""
             //Toast.makeText(context, "全員OK", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {

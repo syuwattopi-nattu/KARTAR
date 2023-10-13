@@ -2,6 +2,7 @@ package com.example.kartar.controller
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
@@ -135,6 +136,10 @@ class AuthViewModel(private val profileViewModel: ProfileViewModel): ViewModel()
                             navController.navigate(MainActivity.Screen.Home.route) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
+                            val intent = Intent(context, MainActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            context.startActivity(intent)
+                            (context as Activity).finish()
                         }
                     }
                 }

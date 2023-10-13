@@ -1,6 +1,8 @@
 package com.example.kartar.controller
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
@@ -11,6 +13,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.example.kartar.MainActivity
 import com.example.kartar.R
 import com.example.kartar.controller.singleton.FirebaseSingleton
 import com.example.kartar.theme.LiteGreen
@@ -119,9 +122,15 @@ class ProfileViewModel(context: Context, private val navController: NavControlle
                 userName.value = userSharedPreferences.getString(context.getString(R.string.UserName), "").toString()
                 iconImageUri.value = userSharedPreferences.getString(context.getString(R.string.imageIcon), "")?.toUri()
                 /*HomeScreenに移動*/
+                /*
                 navController.navigate("home") {
                     popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 }
+                 */
+                val intent = Intent(context, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                context.startActivity(intent)
+                (context as Activity).finish()
             }
             /*変数の更新*/
             showProcessIndicator.value = false

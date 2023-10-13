@@ -195,7 +195,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
             it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
@@ -477,24 +477,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpe
                 Log.d("DEBUG_NFC", "messageがnull")
             }
         } else {
-            val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
-            Log.d("DEBUG_NFC", rawMessages.toString())
-            val message = rawMessages?.map { it as NdefMessage }?.firstOrNull()
-
-            if (message != null) {
-                Log.d("DEBUG_NFC", "読み取ったテキスト")
-                val record = message.records.firstOrNull()
-                val payload = record?.payload
-                val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
-                Log.d("DEBUG_NFC", "読み取ったテキストは: $text")
-                runOnUiThread {
-                    //Toast.makeText(this, "読み取ったテキストは: $text", Toast.LENGTH_SHORT).show()
-                }
-                augmentedController.setNfcText(text, this)
-            } else {
-                Log.d("DEBUG_NFC", "messageがnull")
-            }
-
+            Log.d("DEBUG_NFC", "^^")
         }
     }
 
