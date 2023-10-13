@@ -267,6 +267,8 @@ class RoomCreateViewModel(context: Context) : ViewModel() {
 
             /*AugmentImageに画面遷移*/
             val intent = Intent(context, AugmentedActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+
             intent.putExtra("KEYS", keys)
             intent.putExtra("VALUES", values)
             intent.putExtra("ROOMUID", enterRoomUid.value)
