@@ -26,7 +26,7 @@ import java.io.FileOutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class KartaSearchViewModel : ViewModel(){
+class KartaSearchViewModel(private val createViewModel: CreateViewModel) : ViewModel(){
     //検索ボックス用の変数
     val searchKeyword = mutableStateOf("")
     val searchBoxPlaceholder = mutableStateOf("1～21文字で入力してください")
@@ -344,6 +344,7 @@ class KartaSearchViewModel : ViewModel(){
                         showIndicator.value = false
                         navController.popBackStack()
                         Toast.makeText(context, "保存しました", Toast.LENGTH_SHORT).show()
+                        createViewModel.getKartaDirectories(context = context)
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {

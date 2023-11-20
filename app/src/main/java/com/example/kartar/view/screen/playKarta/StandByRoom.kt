@@ -80,6 +80,17 @@ fun WaitingNumberText(roomCreateViewModel: RoomCreateViewModel) {
         )
         Spacer(modifier = Modifier.fillMaxHeight(fraction = 0.02f))
         Text(
+            text = "部屋ID",
+            color = Grey,
+            fontSize = 16.sp
+        )
+        Text(
+            text =  roomCreateViewModel.enterRoomUid.value,
+            color = Grey,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.fillMaxHeight(fraction = 0.02f))
+        Text(
             text = "待機人数",
             color = Grey,
             fontSize = 16.sp
@@ -92,7 +103,7 @@ fun WaitingNumberText(roomCreateViewModel: RoomCreateViewModel) {
 fun PlayerColumn(roomCreateViewModel: RoomCreateViewModel) {
     LazyColumn(
         modifier = Modifier
-            .padding(start = 30.dp, end = 30.dp)
+            .padding(start = 20.dp, end = 20.dp)
             .height(220.dp)
     ) {
         items(roomCreateViewModel.playerInformation.value.size) { index ->
@@ -101,15 +112,36 @@ fun PlayerColumn(roomCreateViewModel: RoomCreateViewModel) {
                     .fillMaxWidth()
                     .background(DarkRed.copy(alpha = 0.05f), shape = RoundedCornerShape(5.dp))
             ) {
-                Row {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(70.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.fillMaxWidth(fraction = 0.01f))
                     PlayerIcon(
-                        modifier = Modifier.size(30.dp),
+                        modifier = Modifier.size(60.dp),
                         borderWidth = 1,
                         model = roomCreateViewModel.playerInformation.value[index].second
                     )
-                    Text(text = roomCreateViewModel.playerInformation.value[index].first)
+                    Spacer(modifier = Modifier.fillMaxWidth(fraction = 0.05f))
+                    Box(
+                        modifier = Modifier.fillMaxWidth(fraction = 0.5f),
+                    ) {
+                        Text(
+                            text = roomCreateViewModel.playerInformation.value[index].first,
+                            fontSize = 16.sp
+                        )
+                    }
                     if (roomCreateViewModel.allPlayers.value.size > index) {
-                        Text(text = roomCreateViewModel.allPlayers.value[index].state)
+                        val stateMessage = if (roomCreateViewModel.allPlayers.value[index].state == "enter") {
+                            "準備中...."
+                        } else {
+                            "OK!"
+                        }
+                        Text(
+                            text = stateMessage,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

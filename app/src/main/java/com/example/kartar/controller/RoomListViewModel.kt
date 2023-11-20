@@ -1,6 +1,7 @@
 package com.example.kartar.controller
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.example.kartar.controller.singleton.FirebaseSingleton
 import com.example.kartar.model.RoomData
 import com.example.kartar.model.realTimeDatabase.RoomInfo
 import com.example.kartar.view.AugmentedActivity
@@ -40,9 +42,58 @@ class RoomListViewModel(context: Context) : ViewModel() {
     }
 
     //検索入力処理
-    fun onSearchBoxChange(newString: String) {
-        if (newString.length < 21) {
+    fun onSearchBoxChange(newString: String, context: Context, roomCreateViewModel: RoomCreateViewModel, navController: NavController) {
+        if (newString.length < 17) {
             searchKeyword.value = newString
+            if (searchKeyword.value.length == 16) {
+                FirebaseSingleton.databaseReference.getReference("room/${searchKeyword.value}").get()
+                    .addOnSuccessListener { dataSnap ->
+                        val dialogBuilder = AlertDialog.Builder(context)
+                        dialogBuilder.setTitle("部屋検索の結果")
+                        if (dataSnap.value != null) {
+                            dialogBuilder.setMessage("部屋がみつかりました!\n入りますか？")
+                            dialogBuilder.setPositiveButton("OK") { _, _ ->
+                                try {
+                                    val createRoom = FirebaseSingleton.databaseReference.getReference("room").child(searchKeyword.value)
+                                    //人数の追加
+                                    createRoom.child("roomInfo").child("count").get()
+                                        .addOnSuccessListener { snapshot ->
+                                            val currentValue: Int? = snapshot.getValue(Int::class.java)
+                                            if (currentValue != null && currentValue < 4) {
+                                                createRoom.child("roomInfo").child("count").setValue(currentValue + 1)
+                                                //ポイントの初期化
+                                                val updateMap = HashMap<String, Any>()
+                                                updateMap[FirebaseAuth.getInstance().currentUser?.uid.toString()] = 0
+                                                createRoom.child("point").updateChildren(updateMap)
+                                                //参加者登録
+                                                val playerUpdateMap = HashMap<String, Any>()
+                                                playerUpdateMap[FirebaseAuth.getInstance().currentUser?.uid.toString()] = "enter"
+                                                createRoom.child("player").updateChildren(playerUpdateMap)
+                                                roomCreateViewModel.enterRoomUid.value = searchKeyword.value
+                                                roomCreateViewModel.roomInformation(navController, context = context)
+                                            } else {
+                                                Toast.makeText(context, "部屋に入ることに失敗しました", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                } catch (e:Exception) {
+                                    Log.d("エラー", e.message.toString())
+                                }
+                            }
+                            dialogBuilder.setNegativeButton("NO") { dialog, _ ->
+                                dialog.dismiss()  // ダイアログを閉じる
+                            }
+                            val dialog = dialogBuilder.create()
+                            dialog.show()
+                        } else {
+                            dialogBuilder.setMessage("部屋が存在しません!")
+                            dialogBuilder.setPositiveButton("OK") { dialog, _ ->
+                                dialog.dismiss()
+                            }
+                            val dialog = dialogBuilder.create()
+                            dialog.show()
+                        }
+                    }
+            }
         }
     }
 
@@ -64,7 +115,7 @@ class RoomListViewModel(context: Context) : ViewModel() {
                 val currentList = mutableListOf<RoomData>()
                 for (roomSnapshot in snapshot.children) {
                     val roomInfo = roomSnapshot.child("roomInfo").getValue(RoomInfo::class.java)
-                    if (roomInfo?.kind == "public") {
+                    if (roomInfo?.kind == "public" && roomInfo.start == "false") {
                         currentList.add(
                             RoomData(
                                 name = roomInfo.roomName,

@@ -330,15 +330,17 @@ fun SelectKartaImage(roomCreateViewModel: RoomCreateViewModel) {
         val imageFile = File(context.filesDir, "karta/${roomCreateViewModel.playKartaUid.value}/0.png")
         val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
         Box {
-            Image(
-                modifier = Modifier
-                    .width(200.dp)
-                    .height(280.dp)
-                    .align(Alignment.Center),
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop
-            )
+            bitmap?.asImageBitmap()?.let {
+                Image(
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(280.dp)
+                        .align(Alignment.Center),
+                    bitmap = it,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
     }
 }

@@ -1,16 +1,27 @@
 package com.example.kartar.view
 
+import android.annotation.SuppressLint
+import android.app.PendingIntent
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NfcAdapter
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.Pair
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
@@ -38,13 +49,22 @@ import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
 import com.google.firebase.appcheck.interop.BuildConfig
+import kotlinx.coroutines.delay
 import java.io.IOException
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import java.util.Locale
 
-class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
+
+class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer, TextToSpeech.OnInitListener {
+    private var textToSpeech: TextToSpeech? = null
     /*使うかるたのデータをまとめたリスト*/
     private var pairList: MutableList<Pair<String, String>> = ArrayList()
+    private var yomifuda: MutableList<String> = ArrayList()
     /*AugmentedControllerのViewModel*/
     val augmentedController = AugmentedController()
 
@@ -70,12 +90,57 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     // database.
     private val augmentedImageMap: MutableMap<Int, Pair<AugmentedImage, Anchor>> = HashMap()
 
+
+    private var nfcAdapter: NfcAdapter? = null
+    private var pendingIntent: PendingIntent? = null
+    private var intentFilters: Array<IntentFilter>? = null
+
+    // 戻るボタンを無効にするためのメソッド
+    @Deprecated(
+        "Deprecated in Java",
+        ReplaceWith(
+            "Toast.makeText(this, \"ゲーム中は前画面に戻れません!\", Toast.LENGTH_SHORT).show()",
+            "android.widget.Toast",
+            "android.widget.Toast"
+        )
+    )
+    override fun onBackPressed() {
+        Toast.makeText(this, "ゲーム中は前画面に戻れません!", Toast.LENGTH_SHORT).show()
+    }
+
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("AugmentedActivity", "onCreate started")
+
         setContentView(R.layout.activity_augmentedimage)
         surfaceView = findViewById(R.id.surfaceView)
         displayRotationHelper = DisplayRotationHelper( /*context=*/this)
 
+        val fullScreenView = findViewById<View>(R.id.fullscreen_view)
+        fullScreenView.setOnTouchListener { view, touchEvent ->
+            when (touchEvent.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (augmentedController.nfcEnable.value) {
+                        pauseCamera()
+                    }
+                }
+                MotionEvent.ACTION_UP or MotionEvent.ACTION_CANCEL -> {
+                    if (session != null) {
+                        try {
+                            session?.resume()
+                            surfaceView?.onResume()
+                            displayRotationHelper?.onResume()
+                        } catch (e: CameraNotAvailableException) {
+                            // エラーハンドリングをここに実装
+                        }
+                    }
+                }
+            }
+            return@setOnTouchListener false
+        }
         // Set up renderer.
         surfaceView?.apply {
             preserveEGLContextOnPause = true
@@ -85,7 +150,6 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             setWillNotDraw(false)
         }
-
         fitToScanView = findViewById(R.id.image_view_fit_to_scan)
         if (fitToScanView != null) {
             glideRequestManager = Glide.with(this)
@@ -98,6 +162,14 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         /*画面遷移元からもらう値*/
         val keys = intent.getStringArrayExtra("KEYS")
         val values = intent.getStringArrayExtra("VALUES")
+        val yomifuda = intent.getStringArrayExtra("YOMIFUDA")
+
+        val currentList = mutableListOf<String>()
+        for (i in 0..43) {
+            currentList.add(yomifuda?.get(i) ?: "よみふだがありません")
+        }
+        augmentedController.yomifuda.value = currentList
+
         augmentedController.roomUid.value = intent.getStringExtra("ROOMUID").toString()
         augmentedController.ownerUid.value = intent.getStringExtra("OWNERUID").toString()
         /*今回使うかるたデータをリスト化*/
@@ -110,11 +182,87 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         Log.d("stream", augmentedController.roomUid.value)
         FirebaseSingleton.databaseReference.getReference("room/${augmentedController.roomUid.value}/player/${FirebaseSingleton.currentUid()}")
             .setValue("rest")
+
+        //nfcスキャン用のインスタンスを作成
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        if (nfcAdapter != null) {
+            Log.d("DEBUG_NFC", "nullではない!")
+        } else {
+            Log.d("DEBUG_NFC", "nullです!")
+        }
+
+        val intent = Intent(this, javaClass).also {
+            it.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            flags
+        )
+
+        val ndefIntentFilter = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).also {
+            try {
+                it.addDataType("text/plain")
+            } catch (e: IntentFilter.MalformedMimeTypeException) {
+                throw RuntimeException("MIMEタイプまちがえてる")
+            }
+        }
+
+        intentFilters = arrayOf(ndefIntentFilter)
+
+        lifecycleScope.launch {
+            augmentedController.speechAllow.collect {it: Boolean ->
+                if (it) {
+                    augmentedController.speechAllow.value = false
+                    session?.pause()
+                    surfaceView?.onPause()
+                    displayRotationHelper?.onPause()
+                    textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        startSpeak(augmentedController.nextGet.value, true)
+                        if (session != null) {
+                            try {
+                                session?.resume()
+                                surfaceView?.onResume()
+                                displayRotationHelper?.onResume()
+                                augmentedController.playStartTime.longValue = System.currentTimeMillis()
+                                session?.pause()
+                                surfaceView?.onPause()
+                                displayRotationHelper?.onPause()
+                                textToSpeech = TextToSpeech(this@AugmentedActivity,this@AugmentedActivity)
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    val result = yomifuda?.firstOrNull { it.startsWith(augmentedController.nextGet.value) }
+                                    startSpeak(result.toString(), true)
+                                    if (session != null) {
+                                        try {
+                                            session?.resume()
+                                            surfaceView?.onResume()
+                                            displayRotationHelper?.onResume()
+                                            augmentedController.playStartTime.longValue = System.currentTimeMillis()
+                                        } catch (e: CameraNotAvailableException) {
+                                            // エラーハンドリングをここに実装
+                                        }
+                                    }
+                                }, 100)
+                            } catch (e: CameraNotAvailableException) {
+                                // エラーハンドリングをここに実装
+                            }
+                        }
+                    }, 100)
+                }
+            }
+        }
     }
 
     override fun onStart() {
         if (augmentedController.ownerUid.value == FirebaseSingleton.currentUid()) {
-            augmentedController.upDatePlayerState(context = this)
+            augmentedController.upDatePlayerState()
         }
         augmentedController.upDateRoomState(this)
 
@@ -123,6 +271,9 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     override fun onResume() {
         super.onResume()
+        Log.d("NFC_Debug", "Enabling NFC foreground dispatch")
+        nfcAdapter!!.enableForegroundDispatch(this, pendingIntent, intentFilters, null)
+        Log.d("NFC_Debug", "NFC foreground dispatch enabled")
         if (session == null) {
             var exception: Exception? = null
             var message: String? = null
@@ -198,8 +349,14 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
 
     public override fun onPause() {
         super.onPause()
+        handler.removeCallbacks(toggleCameraRunnable)
+        Log.d("NFC_Debug", "Disabling NFC foreground dispatch")
+        nfcAdapter?.disableForegroundDispatch(this)
+        Log.d("NFC_Debug", "NFC foreground dispatch disabled")
+
         /*順番が重要!GLSurfaceViewは、セッションを問い合わせようとしないように最初に一時停止する。
-    　SessionがGLSurfaceViewの前に一時停止されると、GLSurfaceViewはsession.update()を呼び出すことがありSessionPausedExceptionが発生するかも。*/if (session != null) {
+    　SessionがGLSurfaceViewの前に一時停止されると、GLSurfaceViewはsession.update()を呼び出すことがありSessionPausedExceptionが発生するかも。*/
+        if (session != null) {
             displayRotationHelper!!.onPause()
             surfaceView!!.onPause()
             session!!.pause()
@@ -238,7 +395,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             // 背景のテクスチャを作成してARCore セッションに渡し、update() 中に塗りつぶします。
             backgroundRenderer.createOnGlThread( /*context=*/this)
         } catch (e: IOException) {
-            Log.e(TAG, "Failed to read an asset file", e)
+            //Log.e(TAG, "Failed to read an asset file", e)
         }
     }
 
@@ -287,9 +444,87 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             drawAugmentedImages(frame, projmtx, viewmtx, colorCorrectionRgba)
         } catch (t: Throwable) {
             // Avoid crashing the application due to unhandled exceptions.
-            Log.e(TAG, "Exception on the OpenGL thread", t)
+            //Log.e(TAG, "Exception on the OpenGL thread", t)
         }
     }
+
+    /**NFCタグが検出されたときに呼び出される。*/
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+
+        Log.d("DEBUG_NFC", "onNewIntent")
+
+        runOnUiThread {
+            //Toast.makeText(this, "onNewIntent", Toast.LENGTH_SHORT).show()
+        }
+
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
+            val rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+            Log.d("DEBUG_NFC", rawMessages.toString())
+            val message = rawMessages?.map { it as NdefMessage }?.firstOrNull()
+
+            if (message != null) {
+                Log.d("DEBUG_NFC", "読み取ったテキスト")
+                val record = message.records.firstOrNull()
+                val payload = record?.payload
+                val text = String(payload ?: ByteArray(0), Charsets.UTF_8)
+                Log.d("DEBUG_NFC", "読み取ったテキストは: $text")
+                runOnUiThread {
+                    //Toast.makeText(this, "読み取ったテキストは: $text", Toast.LENGTH_SHORT).show()
+                }
+                augmentedController.setNfcText(text, this)
+            } else {
+                Log.d("DEBUG_NFC", "messageがnull")
+            }
+        } else {
+            Log.d("DEBUG_NFC", "^^")
+        }
+    }
+
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val toggleCameraRunnable = object : Runnable {
+        override fun run() {
+            if (session != null) {
+                if (isCameraRunning) {
+                    try {
+                        session!!.pause()
+                        isCameraRunning = false
+                        handler.postDelayed(this, 100) // 0.5 seconds pause
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Exception pausing the session", e)
+                    }
+                } else {
+                    try {
+                        session!!.resume()
+                        isCameraRunning = true
+                        handler.postDelayed(this, 2000) // 2 seconds run
+                    } catch (e: CameraNotAvailableException) {
+                        Log.e(TAG, "Camera not available when trying to resume", e)
+                    }
+                }
+            }
+        }
+    }
+    private var isCameraRunning = true
+
+    private fun pauseCamera() {
+        session?.pause()
+        surfaceView?.onPause()
+        displayRotationHelper?.onPause()
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (session != null) {
+                try {
+                    session?.resume()
+                    surfaceView?.onResume()
+                    displayRotationHelper?.onResume()
+                } catch (e: CameraNotAvailableException) {
+                    // エラーハンドリングをここに実装
+                }
+            }
+        }, 600)
+    }
+
 
     private fun configureSession() {
         val config = Config(session)
@@ -320,7 +555,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                         augmentedImage.index,
                         augmentedImage.name
                     )
-                    Log.d("ファイル", augmentedImage.name)
+                    //Log.d("ファイル", augmentedImage.name)
                     messageSnackbarHelper.showMessage(this, text)
                 }
 
@@ -371,7 +606,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
                 val key = pair.first
                 val value = pair.second
                 val assetPath = "efuda/$key.png"
-                Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
+                //Log.d("ファイル", "key:$key\nvalue:$value\n存在します")
                 augmentedImageDatabase.addImage(value, loadAugmentedImageBitmap(assetPath))
             }
         }
@@ -384,7 +619,7 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         try {
             assets.open(imageName).use { `is` -> return BitmapFactory.decodeStream(`is`) }
         } catch (e: IOException) {
-            Log.e(TAG, "IO exception loading augmented image bitmap.", e)
+            //Log.e(TAG, "IO exception loading augmented image bitmap.", e)
         }
         return null
     }
@@ -392,5 +627,41 @@ class AugmentedActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     companion object {
         //ARcoreにもともとあった値
         private val TAG = AugmentedActivity::class.java.simpleName
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            Log.d("speach", "成功")
+            textToSpeech?.let { tts ->
+                val locale = Locale.JAPAN
+                if (tts.isLanguageAvailable(locale) > TextToSpeech.LANG_AVAILABLE) {
+                    tts.language = Locale.JAPAN
+                } else {
+                    // 言語の設定に失敗
+                }
+            }
+
+        } else {
+            Log.d("speach", "失敗")
+            // Tts init 失敗
+        }
+    }
+
+    private fun startSpeak(text: String, isImmediately: Boolean){
+        Log.d("speach", "startspeak")
+        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
+        textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onDone(utteranceId: String) {
+                Log.d("speach", "onDone")
+            }
+
+            override fun onError(utteranceId: String) {
+                Log.d("speach", "error")
+            }
+
+            override fun onStart(utteranceId: String) {
+                Log.d("speach", "onstart")
+            }
+        })
     }
 }

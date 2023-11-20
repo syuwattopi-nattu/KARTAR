@@ -8,6 +8,11 @@
     <uses-feature android:name="android.hardware.camera.ar" android:required="true" />
     <uses-feature android:name="android.hardware.camera" android:required="true"/>
 
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="true" />
+
 
     <application
         android:allowBackup="true"
@@ -31,7 +36,16 @@
             </intent-filter>
         </activity>
         <activity android:name=".AugmentedImageActivity"/>
-        <activity android:name=".view.AugmentedActivity"/>
+
+        <activity
+            android:name=".view.AugmentedActivity"
+            android:exported="true">
+        </activity>
+
+
+        <activity android:name=".GameResultActivity"/>
+
+        <meta-data android:name="android.nfc.action.TECH_DISCOVERED" android:resource="@xml/nfc_tech_filter" />
         <meta-data android:name="com.google.ar.core" android:value="required" />
     </application>
 

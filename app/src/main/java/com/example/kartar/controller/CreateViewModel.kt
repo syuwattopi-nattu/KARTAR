@@ -56,7 +56,7 @@ class CreateViewModel(context: Context) : ViewModel() {
     }
 
     /**ローカルのかるたディレクトリー取得**/
-    private fun getKartaDirectories(context: Context) {
+    fun getKartaDirectories(context: Context) {
         val dir = File(context.filesDir, "karta")
         val validDirectories = mutableListOf<File>()
 
